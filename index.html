@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EiFF Project — English is F#!%ing Fun</title>
+    <meta name="description" content="The Out-of-the-Box English Teaching Super Method. Learn 3,300 vocabulary words with Egyptian Arabic translations.">
+    <link rel="icon" href="assets/favicon.ico.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cairo:wght@400;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ──────────────────────────────────────────
+     SPLASH SCREEN
+     ────────────────────────────────────────── -->
+<div id="splash-screen" aria-label="Loading EiFF Project">
+    <img src="assets/logo-hero.png" alt="EiFF Project Logo">
+</div>
+
+<!-- ──────────────────────────────────────────
+     TOPBAR
+     ────────────────────────────────────────── -->
+<header class="topbar" role="banner">
+    <a href="index.html" class="nav-logo" aria-label="EiFF Home">
+        <img src="assets/logo-nav.png" alt="EiFF Project">
+    </a>
+    <nav class="nav-actions" aria-label="Primary navigation">
+        <button class="btn-secondary" id="btn-open-signup" aria-haspopup="dialog">SIGN UP</button>
+        <button class="btn-primary"   id="btn-open-signin" aria-haspopup="dialog">SIGN IN</button>
+    </nav>
+</header>
+
+<!-- ──────────────────────────────────────────
+     HERO SECTION (matches concept image)
+     ────────────────────────────────────────── -->
+<main>
+<section class="hero-section" aria-labelledby="hero-heading">
+    <div class="hero-content">
+
+        <!-- Main Headline -->
+        <h1 class="hero-headline" id="hero-heading">
+            WELCOME<br>
+            TO THE OUT OF THE&nbsp;
+            <span class="word-box">
+                <span style="color: var(--g-green);">B</span><span class="word-box-o">O</span><span class="word-box-x">X</span>
+            </span><br>
+            ENGLISH TEAHCING&nbsp;
+            <span class="word-super">Super</span>
+            &nbsp;METHOD
+        </h1>
+
+        <!-- Author -->
+        <p class="hero-author">BY : MOHAMED YAKOT</p>
+
+        <!-- Quirky bio — matches concept exactly -->
+        <div class="hero-bio" aria-label="About the author">
+            <p>he is not a english teacher</p>
+            <p>he quit the school while he was 18</p>
+            <p>he is a self learner</p>
+            <p>so u have to be careful before follow his own path</p>
+            <p>he evem writing his name wrong !</p>
+            <p>it should be Yaqout !</p>
+        </div>
+
+    </div>
+    <div class="hero-accent-bar" aria-hidden="true"></div>
+</section>
+</main>
+
+<!-- ──────────────────────────────────────────
+     FOOTER BAR (red band matches image)
+     ────────────────────────────────────────── -->
+<footer class="home-footer-bar" aria-label="Version info">
+    V1.1 - 2026 - 2018
+</footer>
+
+<!-- ──────────────────────────────────────────
+     SIGN IN MODAL
+     ────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-signin" role="dialog" aria-modal="true" aria-labelledby="signin-title">
+    <div class="modal-box">
+        <button class="modal-close" aria-label="Close">&times;</button>
+
+        <div class="modal-logo">
+            <img src="assets/logo-nav.png" alt="EiFF">
+            <h2 id="signin-title">Welcome Back</h2>
+            <p>Sign in to continue your journey</p>
+        </div>
+
+        <div class="auth-error" id="signin-error" role="alert"></div>
+
+        <form id="form-signin" novalidate>
+            <div class="form-group">
+                <label for="signin-email">Email Address</label>
+                <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" required>
+            </div>
+            <div class="form-group">
+                <label for="signin-password">Password</label>
+                <input type="password" id="signin-password" placeholder="••••••••" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn-auth btn-auth-blue">Sign In</button>
+        </form>
+
+        <p class="modal-switch">
+            Don't have an account? <span id="switch-to-signup">Create one</span>
+        </p>
+    </div>
+</div>
+
+<!-- ──────────────────────────────────────────
+     SIGN UP MODAL
+     ────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-signup" role="dialog" aria-modal="true" aria-labelledby="signup-title">
+    <div class="modal-box">
+        <button class="modal-close" aria-label="Close">&times;</button>
+
+        <div class="modal-logo">
+            <img src="assets/logo-nav.png" alt="EiFF">
+            <h2 id="signup-title">Join EiFF</h2>
+            <p>Start learning 3,300 words today — for free</p>
+        </div>
+
+        <div class="auth-error" id="signup-error" role="alert"></div>
+
+        <form id="form-signup" novalidate>
+            <div class="form-group">
+                <label for="signup-name">Your Name</label>
+                <input type="text" id="signup-name" placeholder="Mohamed" autocomplete="name" required>
+            </div>
+            <div class="form-group">
+                <label for="signup-email">Email Address</label>
+                <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email" required>
+            </div>
+            <div class="form-group">
+                <label for="signup-password">Password</label>
+                <input type="password" id="signup-password" placeholder="Min. 6 characters" autocomplete="new-password" required>
+            </div>
+            <button type="submit" class="btn-auth btn-auth-red">Create Account</button>
+        </form>
+
+        <p class="modal-switch">
+            Already have an account? <span id="switch-to-signin">Sign in</span>
+        </p>
+    </div>
+</div>
+
+<!-- ──────────────────────────────────────────
+     SCRIPTS
+     ────────────────────────────────────────── -->
+<script type="module">
+    import { initSplash, initAuthModals, watchAuthState, showToast } from './js/auth-ui.js';
+
+    // Boot
+    initSplash();
+    initAuthModals();
+
+    // If already logged in, show dashboard button instead
+    watchAuthState(
+        (user) => {
+            // User is logged in — update nav
+            const navActions = document.querySelector('.nav-actions');
+            navActions.innerHTML = `
+                <span style="font-size:0.85rem; color:var(--text-2); font-weight:600;">Hi, ${user.displayName || user.email.split('@')[0]} 👋</span>
+                <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Go to Dashboard →</a>
+                <button class="btn-secondary" id="btn-signout">Sign Out</button>
+            `;
+            document.getElementById('btn-signout')?.addEventListener('click', async () => {
+                const { eiffSignOut } = await import('./js/firebase-config.js');
+                await eiffSignOut();
+                showToast('Signed out successfully');
+                window.location.reload();
+            });
+        },
+        () => {
+            // Not logged in — default buttons already shown
+        }
+    );
+</script>
+
+</body>
+</html>
