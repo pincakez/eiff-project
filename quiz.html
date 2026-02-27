@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz — EiFF Project</title>
+    <meta name="description" content="Test your vocabulary knowledge. Score 80%+ to unlock the next level.">
+    <link rel="icon" href="assets/favicon.ico.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cairo:wght@400;600;700;800&family=Pacifico&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- TOPBAR -->
+    <header class="topbar" role="banner">
+        <a href="dashboard.html" class="nav-logo" aria-label="Back to Dashboard">
+            <img src="assets/logo-nav.png" alt="EiFF Project">
+        </a>
+        <div class="nav-actions">
+            <button class="btn-secondary" id="btn-signout">Sign Out</button>
+        </div>
+    </header>
+
+    <!-- MAIN -->
+    <main>
+        <div class="quiz-wrapper">
+
+            <!-- Progress -->
+            <div class="quiz-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0"
+                id="progress-bar-container">
+                <div class="quiz-progress-fill" id="progress-fill" style="width:0%"></div>
+            </div>
+            <div class="quiz-progress-text">
+                <span id="q-counter">Question 1 of 10</span>
+                <span class="quiz-score-badge" id="score-badge">Score: 0</span>
+            </div>
+
+            <!-- Quiz card (replaced each question) -->
+            <div id="quiz-area">
+                <div class="loading-spinner" role="status">
+                    <div class="spinner"></div>
+                    <span>Preparing quiz…</span>
+                </div>
+            </div>
+
+            <!-- Next button -->
+            <div class="quiz-nav">
+                <button class="btn-next-q" id="btn-next" aria-label="Next question">Next →</button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- TOAST -->
+    <div class="toast" id="eiff-toast" role="status" aria-live="polite"></div>
+
+    <!-- SCRIPTS -->
+    <script type="module" src="./js/quiz.js"></script>
+
+</body>
+
+</html>

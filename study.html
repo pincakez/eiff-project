@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study — EiFF Project</title>
+    <meta name="description" content="Study English vocabulary with Arabic and Egyptian dialect translations.">
+    <link rel="icon" href="assets/favicon.ico.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cairo:wght@400;600;700;800&family=Pacifico&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- TOPBAR -->
+    <header class="topbar" role="banner">
+        <a href="dashboard.html" class="nav-logo" aria-label="Back to Dashboard">
+            <img src="assets/logo-nav.png" alt="EiFF Project">
+        </a>
+        <div class="nav-actions">
+            <button id="btn-speak-all" class="btn-primary" style="gap:6px; display:flex; align-items:center;">
+                🔊 Read All
+            </button>
+            <button class="btn-secondary" id="btn-signout">Sign Out</button>
+        </div>
+    </header>
+
+    <!-- MAIN -->
+    <main>
+        <!-- Study Header -->
+        <div class="study-header">
+            <button class="back-btn" onclick="history.back()" aria-label="Go back">
+                ← Back
+            </button>
+            <div>
+                <div class="study-title" id="study-title">Loading…</div>
+                <div class="study-subtitle" id="study-subtitle"></div>
+            </div>
+        </div>
+
+        <!-- Word Table -->
+        <div class="table-container" id="table-container" role="region" aria-label="Vocabulary table">
+            <div class="loading-spinner" role="status">
+                <div class="spinner"></div>
+                <span>Loading words…</span>
+            </div>
+        </div>
+
+        <!-- Sticky CTA -->
+        <div class="study-cta" aria-label="Quiz call to action">
+            <p>✅ Done studying? Test your knowledge!</p>
+            <button class="btn-start-quiz" id="btn-start-quiz">Start Quiz 🚀</button>
+        </div>
+    </main>
+
+    <!-- TOAST -->
+    <div class="toast" id="eiff-toast" role="status" aria-live="polite"></div>
+
+    <!-- SCRIPTS -->
+    <script type="module">
+        import { vocabData } from './js/data-sector1A.js';
+        import { auth, onAuthStateChanged, eiffSignOut } from './js/firebase-config.js';
+        import { showToast } from './js/auth-ui.js';
+
+        // ─── Parse URL params ──────────────────────
+        const params = new URLSearchParams(window.location.search);
+        const chapter = parseInt(params.get('chapter')) || 1;
+        const level = parseInt(params.get('level')) || 1;
+
+        // ─── Auth Guard & Lockout Check ────────────
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) { window.location.href = 'index.html'; return; }
+            
+            const btnStart = document.getElementById('btn-start-quiz');
+            const { checkLockout } = await import('./js/firebase-config.js');
+            
+            const lockout = await checkLockout(user.uid);
+            if (lockout.isLocked) {
+                btnStart.disabled = true;
+                btnStart.classList.add('btn-locked');
+                
+                // Start a live countdown
+                let remaining = lockout.timeLeftMs;
+                const interval = setInterval(() => {
+                    remaining -= 1000;
+                    if (remaining <= 0) {
+                        clearInterval(interval);
+                        btnStart.disabled = false;
+                        btnStart.innerHTML = 'Start Quiz 🚀';
+                        btnStart.classList.remove('btn-locked');
+                    } else {
+                        const hours = Math.floor(remaining / 3600000);
+                        const mins = Math.floor((remaining % 3600000) / 60000);
+                        const secs = Math.floor((remaining % 60000) / 1000);
+                        btnStart.innerHTML = `Locked: ${hours}h ${mins}m ${secs}s`;
+                    }
+                }, 1000);
+            }
+        });
+
+        // ─── Sign Out ──────────────────────────────
+        document.getElementById('btn-signout').addEventListener('click', async () => {
+            await eiffSignOut();
+            window.location.href = 'index.html';
+        });
+
+        // ─── Load & Render Table ───────────────────
+        const words = (vocabData[chapter] && vocabData[chapter][level]) ? vocabData[chapter][level] : [];
+        const globalLevel = (chapter - 1) * 6 + level;
+        const startNo = (globalLevel - 1) * 50 + 1;
+
+        // Set title
+        document.getElementById('study-title').textContent = `Chapter ${chapter} · Level ${level}`;
+        document.getElementById('study-subtitle').textContent = `Words ${startNo}–${startNo + words.length - 1}  ·  ${words.length} entries`;
+        document.title = `Study Ch.${chapter} Lv.${level} — EiFF`;
+
+        // Build table
+        const container = document.getElementById('table-container');
+
+        if (words.length === 0) {
+            container.innerHTML = `
+            <div style="text-align:center; padding:60px 20px; color:var(--text-2);">
+                <div style="font-size:3rem; margin-bottom:12px;">📭</div>
+                <h2>No words yet for this level</h2>
+                <p>Paste your vocabulary data into <code>js/data-sector1A.js</code></p>
+            </div>`;
+        } else {
+            let rows = '';
+            words.forEach((w, i) => {
+                const safeEn = w.en.replace(/'/g, "\\'");
+                rows += `
+            <tr>
+                <td class="col-no">${startNo + i}</td>
+                <td class="col-en">${w.en}</td>
+                <td class="col-ar" dir="rtl" lang="ar">${w.ar}</td>
+                <td class="col-eg" dir="rtl" lang="ar">${w.eg}</td>
+                <td class="col-listen">
+                    <button class="btn-speak" onclick="speakWord('${safeEn}')" aria-label="Pronounce ${w.en}" title="Pronounce">
+                        🔊
+                    </button>
+                </td>
+            </tr>`;
+            });
+
+            container.innerHTML = `
+        <table aria-label="Vocabulary table for Chapter ${chapter} Level ${level}">
+            <thead>
+                <tr>
+                    <th class="col-no"  scope="col">#</th>
+                    <th class="col-en"  scope="col">🇬🇧 English</th>
+                    <th class="col-ar"  scope="col">🇸🇦 Arabic</th>
+                    <th class="col-eg"  scope="col">🇪🇬 Egyptian</th>
+                    <th class="col-listen" scope="col">🔊</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+        }
+
+        // ─── TTS: Speak single word ────────────────
+        window.speakWord = function (text) {
+            if (!('speechSynthesis' in window)) {
+                showToast('Speech not supported in your browser');
+                return;
+            }
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'en-US';
+            u.rate = 0.9;
+            window.speechSynthesis.speak(u);
+        };
+
+        // ─── TTS: Read all words ────────────────────
+        document.getElementById('btn-speak-all').addEventListener('click', () => {
+            if (!('speechSynthesis' in window)) { showToast('Speech not supported'); return; }
+            if (words.length === 0) { showToast('No words to read'); return; }
+
+            window.speechSynthesis.cancel();
+            words.forEach((w, i) => {
+                const u = new SpeechSynthesisUtterance(w.en);
+                u.lang = 'en-US';
+                u.rate = 0.85;
+                u.pause = 0.5;
+                window.speechSynthesis.speak(u);
+            });
+            showToast(`Reading ${words.length} words aloud 🔊`);
+        });
+
+        // ─── Start Quiz ────────────────────────────
+        document.getElementById('btn-start-quiz').addEventListener('click', () => {
+            if (words.length < 4) {
+                showToast('Not enough words for a quiz. Paste your data first!');
+                return;
+            }
+            window.location.href = `quiz.html?chapter=${chapter}&level=${level}`;
+        });
+    </script>
+
+    <!-- Expose vocabData globally for the inline speak onclick -->
+    <script type="module">
+        import { vocabData } from './js/data-sector1A.js';
+        window.__vocabData = vocabData;
+    </script>
+
+</body>
+
+</html>
