@@ -1,5 +1,5 @@
 import { vocabData } from './data-sector1A.js';
-import { auth, onAuthStateChanged, getUserData, unlockNextLevel, eiffSignOut, logQuizAttempt } from './firebase-config.js';
+import { auth, onAuthStateChanged, getUserData, unlockNextLevel, eiffSignOut, logQuizAttempt, checkLockout } from './firebase-config.js';
 import { showToast } from './auth-ui.js';
 
 // ─── Config ────────────────────────────────
@@ -23,10 +23,18 @@ const chapter = parseInt(params.get('chapter')) || 1;
 const level = parseInt(params.get('level')) || 1;
 const globalLevel = (chapter - 1) * 6 + level;
 
-// ─── Auth Guard ────────────────────────────
+// ─── Auth Guard & Internal Lockout Check ──────
 onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = 'index.html'; return; }
     currentUser = user;
+    
+    // Safety Layer: Double check lockout here in case they bypassed the button
+    const lockout = await checkLockout(user.uid);
+    if (lockout.isLocked) {
+        alert('You are currently locked out of quizzes for 48 hours.');
+        window.location.href = 'dashboard.html';
+        return;
+    }
     
     // Start Lockout as soon as user lands here
     await logQuizAttempt(user.uid);
@@ -181,8 +189,6 @@ function showPassModal() {
     modal.querySelector('#btn-confirm-pass').onclick = () => {
         passesRemaining--;
         qIndex = Math.max(0, qIndex - 2); // Penalty
-        // We probably need to reshuffle quizWords or just move to a "new" word
-        // The user said "swap the question", so let's just pick another random one for this slot
         const newWord = shuffle(allWords)[0];
         quizWords[qIndex] = newWord; 
         
@@ -204,7 +210,6 @@ async function showResults() {
     
     const passed = pct >= passThreshold;
     
-    // Logic for next level unlock if applicable
     if (passed && type === 'level' && currentUser) {
         await unlockNextLevel(currentUser.uid, globalLevel);
     }

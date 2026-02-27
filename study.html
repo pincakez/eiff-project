@@ -52,7 +52,8 @@
         <!-- Sticky CTA -->
         <div class="study-cta" aria-label="Quiz call to action">
             <p>✅ Done studying? Test your knowledge!</p>
-            <button class="btn-start-quiz" id="btn-start-quiz">Start Quiz 🚀</button>
+            <!-- Bug Fix: Button starts disabled to prevent race conditions -->
+            <button class="btn-start-quiz" id="btn-start-quiz" disabled>Loading Status...</button>
         </div>
     </main>
 
@@ -98,6 +99,10 @@
                         btnStart.innerHTML = `Locked: ${hours}h ${mins}m ${secs}s`;
                     }
                 }, 1000);
+            } else {
+                // Not locked — enable the button
+                btnStart.disabled = false;
+                btnStart.innerHTML = 'Start Quiz 🚀';
             }
         });
 
@@ -189,22 +194,34 @@
             showToast(`Reading ${words.length} words aloud 🔊`);
         });
 
-        // ─── Start Quiz ────────────────────────────
+        // ─── Start Quiz (Warning Modal) ─────────────
         document.getElementById('btn-start-quiz').addEventListener('click', () => {
             if (words.length < 4) {
-                showToast('Not enough words for a quiz. Paste your data first!');
+                showToast('Not enough words for a quiz.');
                 return;
             }
-            window.location.href = `quiz.html?chapter=${chapter}&level=${level}`;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.innerHTML = `
+                <div class="modal-box arabic-modal">
+                    <h2>تحذير يا بطل</h2>
+                    <p>لو فشلت في الاختبار, مش هتقدر تدخله تاني غير بعد يومين يا باشة</p>
+                    <div style="display:flex; gap:10px; margin-top:24px; direction:rtl;">
+                        <button class="btn-primary" id="btn-quiz-enter" style="flex:1;">دخول</button>
+                        <button class="btn-secondary" id="btn-quiz-cancel" style="flex:1;">لاء استنى</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.querySelector('#btn-quiz-enter').onclick = () => {
+                window.location.href = `quiz.html?chapter=${chapter}&level=${level}`;
+            };
+            modal.querySelector('#btn-quiz-cancel').onclick = () => {
+                modal.remove();
+            };
         });
     </script>
-
-    <!-- Expose vocabData globally for the inline speak onclick -->
-    <script type="module">
-        import { vocabData } from './js/data-sector1A.js';
-        window.__vocabData = vocabData;
-    </script>
-
 </body>
-
 </html>
