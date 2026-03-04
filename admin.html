@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EiFF Admin — Command Center</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --navy: #0a0f1e;
+            --navy2: #111827;
+            --navy3: #1f2937;
+            --navy4: #374151;
+            --amber: #f59e0b;
+            --amber2: #fbbf24;
+            --green: #10b981;
+            --red: #ef4444;
+            --blue: #3b82f6;
+            --text: #f1f5f9;
+            --text2: #94a3b8;
+            --text3: #64748b;
+            --border: rgba(255, 255, 255, 0.08);
+            --sidebar: 240px;
+            --radius: 12px;
+            --trans: 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--navy);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Login Overlay ─────────────────────────────── */
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--navy);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            background-image: radial-gradient(ellipse at 20% 60%, rgba(245, 158, 11, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 60%);
+        }
+
+        .login-card {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px 44px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+            animation: fadeUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        .login-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 50px;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--amber);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .login-title {
+            font-size: 1.9rem;
+            font-weight: 900;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, #fff, var(--amber));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .login-sub {
+            font-size: 0.875rem;
+            color: var(--text2);
+            margin-bottom: 32px;
+        }
+
+        .login-field {
+            margin-bottom: 16px;
+        }
+
+        .login-field label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text2);
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .login-field input {
+            width: 100%;
+            padding: 13px 16px;
+            background: var(--navy3);
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 0.95rem;
+            font-family: 'JetBrains Mono', monospace;
+            transition: var(--trans);
+            outline: none;
+        }
+
+        .login-field input:focus {
+            border-color: var(--amber);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+        }
+
+        .login-error {
+            font-size: 0.8rem;
+            color: var(--red);
+            margin-top: 8px;
+            display: none;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            margin-top: 8px;
+            background: linear-gradient(135deg, var(--amber), #d97706);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--trans);
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+
+        /* ── App Shell (hidden until logged in) ─────────── */
+        #app {
+            display: none;
+        }
+
+        /* ── Sidebar ────────────────────────────────────── */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--sidebar);
+            background: var(--navy2);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            padding: 0 20px 24px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .sidebar-logo .logo-title {
+            font-size: 1.1rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #fff, var(--amber));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-logo .logo-sub {
+            font-size: 0.7rem;
+            color: var(--amber);
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 20px;
+            cursor: pointer;
+            color: var(--text2);
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: var(--trans);
+            border-left: 3px solid transparent;
+            user-select: none;
+        }
+
+        .nav-item:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .nav-item.active {
+            color: var(--amber);
+            border-left-color: var(--amber);
+            background: rgba(245, 158, 11, 0.06);
+        }
+
+        .nav-icon {
+            font-size: 1.1rem;
+            width: 22px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn-logout {
+            width: 100%;
+            padding: 9px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px;
+            color: var(--red);
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--trans);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* ── Main Content ───────────────────────────────── */
+        .main {
+            margin-left: var(--sidebar);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .topbar {
+            padding: 18px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(10, 15, 30, 0.8);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .topbar-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+
+        .topbar-sub {
+            font-size: 0.75rem;
+            color: var(--text2);
+            margin-top: 2px;
+        }
+
+        .admin-badge {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 50px;
+            padding: 5px 12px;
+            color: var(--amber);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .content {
+            padding: 32px;
+            flex: 1;
+        }
+
+        /* ── Stat Cards ─────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px;
+            animation: fadeUp 0.4s ease both;
+        }
+
+        .stat-icon {
+            font-size: 1.6rem;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--text);
+        }
+
+        .stat-label {
+            font-size: 0.78rem;
+            color: var(--text2);
+            font-weight: 600;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Section Titles ─────────────────────────────── */
+        .section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text3);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ── Student Table ──────────────────────────────── */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 16px;
+            background: var(--navy2);
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: var(--trans);
+        }
+
+        .search-input:focus {
+            border-color: var(--amber);
+        }
+
+        .search-input::placeholder {
+            color: var(--text3);
+        }
+
+        .table-wrap {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            padding: 13px 16px;
+            text-align: left;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text3);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        tbody tr {
+            transition: background var(--trans);
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        tbody tr:not(:last-child) {
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody td {
+            padding: 14px 16px;
+            vertical-align: middle;
+            font-size: 0.875rem;
+        }
+
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, var(--amber), #d97706);
+            color: #000;
+        }
+
+        .user-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .user-email {
+            font-size: 0.75rem;
+            color: var(--text2);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 50px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .badge-green {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-red {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .badge-amber {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--amber);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+
+        .badge-grey {
+            background: rgba(100, 116, 139, 0.15);
+            color: var(--text3);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .progress-text {
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .progress-sub {
+            font-size: 0.72rem;
+            color: var(--text2);
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-sm {
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: var(--trans);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-sm-red {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-sm-green {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-sm-amber {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--amber);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+
+        .btn-sm-blue {
+            background: rgba(59, 130, 246, 0.12);
+            color: var(--blue);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+
+        .btn-sm:hover {
+            filter: brightness(1.3);
+            transform: translateY(-1px);
+        }
+
+        /* ── Student Detail Modal ───────────────────────── */
+        .modal-bg {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-bg.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 680px;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 28px 32px;
+            transform: translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-bg.open .modal {
+            transform: translateY(0);
+        }
+
+        .modal-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+
+        .modal-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+        }
+
+        .btn-close {
+            background: var(--navy3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text2);
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--trans);
+        }
+
+        .btn-close:hover {
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        .modal-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .mstat {
+            background: var(--navy3);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .mstat-val {
+            font-size: 1.6rem;
+            font-weight: 900;
+        }
+
+        .mstat-lbl {
+            font-size: 0.7rem;
+            color: var(--text2);
+            font-weight: 600;
+            margin-top: 3px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text2);
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-row input[type=range] {
+            flex: 1;
+            accent-color: var(--amber);
+        }
+
+        .control-val {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--amber);
+            min-width: 36px;
+            text-align: center;
+        }
+
+        .control-row select {
+            background: var(--navy3);
+            border: 1.5px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            outline: none;
+            transition: var(--trans);
+        }
+
+        .control-row select:focus {
+            border-color: var(--amber);
+        }
+
+        .attempts-table {
+            font-size: 0.8rem;
+        }
+
+        .attempts-table thead th {
+            font-size: 0.65rem;
+            padding: 9px 12px;
+        }
+
+        .attempts-table tbody td {
+            padding: 10px 12px;
+        }
+
+        /* ── Settings Page ──────────────────────────────── */
+        .settings-card {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            margin-bottom: 20px;
+            max-width: 560px;
+        }
+
+        .settings-title {
+            font-size: 1rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .settings-sub {
+            font-size: 0.8rem;
+            color: var(--text2);
+            margin-bottom: 24px;
+        }
+
+        .setting-row {
+            margin-bottom: 22px;
+        }
+
+        .setting-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .setting-name {
+            font-size: 0.875rem;
+            font-weight: 700;
+        }
+
+        .setting-val {
+            font-size: 0.875rem;
+            font-weight: 800;
+            color: var(--amber);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 50px;
+            background: var(--navy4);
+            outline: none;
+            width: 100%;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--amber);
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+        }
+
+        .btn-save {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, var(--amber), #d97706);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--trans);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-save:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .save-toast {
+            display: inline-block;
+            margin-left: 12px;
+            font-size: 0.8rem;
+            color: var(--green);
+            font-weight: 700;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .save-toast.show {
+            opacity: 1;
+        }
+
+        /* ── Loading ────────────────────────────────────── */
+        .loader-row {
+            text-align: center;
+            padding: 40px;
+            color: var(--text2);
+            font-size: 0.9rem;
+        }
+
+        .spinner-sm {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--amber);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        /* ── Pages ─────────────────────────────────────── */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+            animation: fadeUp 0.3s ease;
+        }
+
+        /* ── Animations ─────────────────────────────────── */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Login Overlay ──────────────────────────────────────── -->
+    <div id="login-overlay">
+        <div class="login-card">
+            <div class="login-badge">🔐 Restricted Access</div>
+            <div class="login-title">EiFF Admin</div>
+            <div class="login-sub">Command Center — authorised personnel only.</div>
+            <div class="login-field">
+                <label>Username</label>
+                <input type="text" id="inp-user" placeholder="username" autocomplete="off">
+            </div>
+            <div class="login-field">
+                <label>Password</label>
+                <input type="password" id="inp-pass" placeholder="••••••••">
+                <div class="login-error" id="login-error">❌ Invalid credentials.</div>
+            </div>
+            <button class="btn-login" id="btn-login">Enter Command Center →</button>
+        </div>
+    </div>
+
+    <!-- ── App Shell ─────────────────────────────────────────── -->
+    <div id="app">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-title">EiFF Admin</div>
+                <div class="logo-sub">Command Center</div>
+            </div>
+            <nav>
+                <div class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">📊</span> Dashboard
+                </div>
+                <div class="nav-item" data-page="students">
+                    <span class="nav-icon">👥</span> Students
+                </div>
+                <div class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span> Global Config
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn-logout" id="btn-logout">Sign out of Admin</button>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <div class="main">
+            <header class="topbar">
+                <div>
+                    <div class="topbar-title" id="page-title">Dashboard</div>
+                    <div class="topbar-sub" id="page-sub">Overview of all students</div>
+                </div>
+                <div class="admin-badge">sudo</div>
+            </header>
+
+            <div class="content">
+
+                <!-- ── Dashboard page ────────────── -->
+                <div class="page active" id="page-dashboard">
+                    <div class="stats-grid" id="dash-stats">
+                        <div class="stat-card" style="animation-delay:0s">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-value" id="st-total">—</div>
+                            <div class="stat-label">Total Students</div>
+                        </div>
+                        <div class="stat-card" style="animation-delay:0.05s">
+                            <div class="stat-icon">🔴</div>
+                            <div class="stat-value" id="st-locked">—</div>
+                            <div class="stat-label">Currently Locked</div>
+                        </div>
+                        <div class="stat-card" style="animation-delay:0.1s">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-value" id="st-passes">—</div>
+                            <div class="stat-label">Total Passes</div>
+                        </div>
+                        <div class="stat-card" style="animation-delay:0.15s">
+                            <div class="stat-icon">❌</div>
+                            <div class="stat-value" id="st-fails">—</div>
+                            <div class="stat-label">Total Fails</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Recent Activity</div>
+                    <div class="table-wrap">
+                        <table id="dash-table">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Progress</th>
+                                    <th>Last Seen</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-tbody">
+                                <tr class="loader-row">
+                                    <td colspan="4"><span class="spinner-sm"></span>Loading…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ── Students page ─────────────── -->
+                <div class="page" id="page-students">
+                    <div class="search-bar">
+                        <input class="search-input" type="text" id="search-input"
+                            placeholder="🔍  Search by name or email…">
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Progress</th>
+                                    <th>Last Seen</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="students-tbody">
+                                <tr class="loader-row">
+                                    <td colspan="5"><span class="spinner-sm"></span>Loading…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ── Settings page ─────────────── -->
+                <div class="page" id="page-settings">
+                    <div class="settings-card">
+                        <div class="settings-title">⏱️ Quiz Timer</div>
+                        <div class="settings-sub">Seconds allowed per question in Level Quizzes.</div>
+
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Time Limit (seconds)</span>
+                                <span class="setting-val" id="lbl-timer">8s</span>
+                            </div>
+                            <input type="range" id="rng-timer" min="2" max="20" value="8">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">💥 Mistake Limits</div>
+                        <div class="settings-sub">How many wrong answers before a student is ejected.</div>
+
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Level Quiz — max mistakes</span>
+                                <span class="setting-val" id="lbl-ml">2</span>
+                            </div>
+                            <input type="range" id="rng-ml" min="1" max="5" value="2">
+                        </div>
+
+                        <div class="setting-row" style="margin-top:20px;">
+                            <div class="setting-label">
+                                <span class="setting-name">Master Quiz — max mistakes</span>
+                                <span class="setting-val" id="lbl-mm">3</span>
+                            </div>
+                            <input type="range" id="rng-mm" min="1" max="10" value="3">
+                        </div>
+                    </div>
+
+                    <button class="btn-save" id="btn-save-settings">Save to Firestore</button>
+                    <span class="save-toast" id="save-toast">✅ Saved!</span>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Student Detail Modal ───────────────────────────────── -->
+    <div class="modal-bg" id="student-modal">
+        <div class="modal">
+            <div class="modal-top">
+                <div class="modal-title" id="modal-name">Student</div>
+                <button class="btn-close" id="modal-close">✕</button>
+            </div>
+
+            <!-- Stats row -->
+            <div class="modal-stats">
+                <div class="mstat">
+                    <div class="mstat-val" id="ms-total">—</div>
+                    <div class="mstat-lbl">Total Attempts</div>
+                </div>
+                <div class="mstat">
+                    <div class="mstat-val" style="color:var(--green)" id="ms-pass">—</div>
+                    <div class="mstat-lbl">Passes</div>
+                </div>
+                <div class="mstat">
+                    <div class="mstat-val" style="color:var(--red)" id="ms-fail">—</div>
+                    <div class="mstat-lbl">Fails</div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="control-group">
+                <div class="control-label">🔓 Penalty Control</div>
+                <div class="action-btns">
+                    <button class="btn-sm btn-sm-green" id="modal-clear">✅ Remove Lockout</button>
+                    <button class="btn-sm btn-sm-red" id="modal-lock">🔒 Force Lockout (12h)</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">📚 Set Unlocked Level (1–60)</div>
+                <div class="control-row">
+                    <input type="range" id="ctrl-level" min="1" max="60" value="1">
+                    <div class="control-val" id="lbl-ctrl-level">1</div>
+                    <button class="btn-sm btn-sm-amber" id="modal-set-level">Apply</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">🏆 Set Unlocked Chapter (1–10)</div>
+                <div class="control-row">
+                    <input type="range" id="ctrl-chapter" min="1" max="10" value="1">
+                    <div class="control-val" id="lbl-ctrl-chapter">1</div>
+                    <button class="btn-sm btn-sm-amber" id="modal-set-chapter">Apply</button>
+                </div>
+            </div>
+
+            <!-- Attempts history -->
+            <div class="section-title" style="margin-top:8px;">Quiz History (last 30)</div>
+            <div class="table-wrap attempts-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Ch</th>
+                            <th>Lv</th>
+                            <th>Score</th>
+                            <th>Result</th>
+                            <th>When</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-attempts">
+                        <tr class="loader-row">
+                            <td colspan="6"><span class="spinner-sm"></span>Loading…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Script ─────────────────────────────────────────────── -->
+    <script type="module">
+        import {
+            getAllUsers, getUserAttempts,
+            clearLockout, lockUser, setUserLevel, setUserChapter,
+            getGlobalConfig, setGlobalConfig
+        } from './js/firebase-config.js';
+
+        // ── Helpers ──────────────────────────────────────────────
+        const LOCKOUT_MS = 12 * 60 * 60 * 1000;
+
+        function isLocked(userData) {
+            if (!userData.lastAttempt) return false;
+            const ts = userData.lastAttempt.toDate ? userData.lastAttempt.toDate().getTime()
+                : userData.lastAttempt.seconds * 1000;
+            return Date.now() - ts < LOCKOUT_MS;
+        }
+
+        function timeAgo(ts) {
+            if (!ts) return 'Never';
+            const ms = Date.now() - (ts.toDate ? ts.toDate().getTime() : ts.seconds * 1000);
+            const m = Math.floor(ms / 60000);
+            const h = Math.floor(ms / 3600000);
+            const d = Math.floor(ms / 86400000);
+            if (m < 1) return 'Just now';
+            if (m < 60) return `${m}m ago`;
+            if (h < 24) return `${h}h ago`;
+            return `${d}d ago`;
+        }
+
+        function levelToChapLv(gl) {
+            const ch = Math.ceil(gl / 6);
+            const lv = ((gl - 1) % 6) + 1;
+            return `Ch.${ch} Lv.${lv}`;
+        }
+
+        // ── Login ─────────────────────────────────────────────────
+        const ADMIN_USER = 'sudo';
+        const ADMIN_PASS = '239995';
+
+        function checkLogin() {
+            return sessionStorage.getItem('eiff-admin') === 'true';
+        }
+
+        document.getElementById('btn-login').addEventListener('click', attemptLogin);
+        document.getElementById('inp-pass').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+
+        function attemptLogin() {
+            const u = document.getElementById('inp-user').value.trim();
+            const p = document.getElementById('inp-pass').value.trim();
+            const err = document.getElementById('login-error');
+            if (u === ADMIN_USER && p === ADMIN_PASS) {
+                sessionStorage.setItem('eiff-admin', 'true');
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('app').style.display = 'flex';
+                init();
+            } else {
+                err.style.display = 'block';
+                document.getElementById('inp-pass').value = '';
+                document.getElementById('inp-pass').focus();
+            }
+        }
+
+        if (checkLogin()) {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            init();
+        }
+
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            sessionStorage.removeItem('eiff-admin');
+            location.reload();
+        });
+
+        // ── Navigation ────────────────────────────────────────────
+        const PAGE_META = {
+            dashboard: { title: 'Dashboard', sub: 'Overview of all students and activity' },
+            students: { title: 'Students', sub: 'Manage individual student progress and penalties' },
+            settings: { title: 'Global Config', sub: 'Adjust quiz rules that affect ALL students live' },
+        };
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.dataset.page;
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                item.classList.add('active');
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById(`page-${page}`).classList.add('active');
+                document.getElementById('page-title').textContent = PAGE_META[page].title;
+                document.getElementById('page-sub').textContent = PAGE_META[page].sub;
+            });
+        });
+
+        // ── Main Init ─────────────────────────────────────────────
+        let allUsersCache = [];
+
+        async function init() {
+            loadSettings();
+            await loadAllUsers();
+            buildDashboard();
+            buildStudentsTable(allUsersCache);
+        }
+
+        // ── Load All Users ────────────────────────────────────────
+        async function loadAllUsers() {
+            allUsersCache = await getAllUsers();
+        }
+
+        // ── Dashboard ─────────────────────────────────────────────
+        function buildDashboard() {
+            const users = allUsersCache;
+            let locked = 0, passes = 0, fails = 0;
+
+            // We don't have total attempts in user doc, so show what we have
+            users.forEach(u => { if (isLocked(u)) locked++; });
+
+            document.getElementById('st-total').textContent = users.length;
+            document.getElementById('st-locked').textContent = locked;
+            document.getElementById('st-passes').textContent = '—';
+            document.getElementById('st-fails').textContent = '—';
+
+            const tbody = document.getElementById('dash-tbody');
+            tbody.innerHTML = '';
+            if (users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="loader-row" style="color:var(--text3)">No students yet.</td></tr>`;
+                return;
+            }
+            const sorted = [...users].sort((a, b) => {
+                const ta = a.lastSeen?.seconds ?? 0;
+                const tb = b.lastSeen?.seconds ?? 0;
+                return tb - ta;
+            });
+            sorted.forEach(u => {
+                const gl = u.unlockedLevel ?? 1;
+                const locked_ = isLocked(u);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+            <td>
+                <div class="user-cell">
+                    <div class="avatar">${(u.displayName || u.email || '?')[0].toUpperCase()}</div>
+                    <div>
+                        <div class="user-name">${u.displayName || '—'}</div>
+                        <div class="user-email">${u.email || ''}</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="progress-text">${levelToChapLv(gl)}</div>
+                <div class="progress-sub">Level ${gl} of 60</div>
+            </td>
+            <td style="color:var(--text2)">${timeAgo(u.lastSeen)}</td>
+            <td>${locked_
+                        ? `<span class="badge badge-red">🔒 Locked</span>`
+                        : `<span class="badge badge-green">✅ Active</span>`}
+            </td>`;
+                tbody.appendChild(row);
+            });
+        }
+
+        // ── Students Table ────────────────────────────────────────
+        function buildStudentsTable(users) {
+            const tbody = document.getElementById('students-tbody');
+            tbody.innerHTML = '';
+            if (users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="loader-row" style="color:var(--text3)">No students found.</td></tr>`;
+                return;
+            }
+            users.forEach(u => {
+                const gl = u.unlockedLevel ?? 1;
+                const locked_ = isLocked(u);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+            <td>
+                <div class="user-cell">
+                    <div class="avatar">${(u.displayName || u.email || '?')[0].toUpperCase()}</div>
+                    <div>
+                        <div class="user-name">${u.displayName || '—'}</div>
+                        <div class="user-email">${u.email || ''}</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="progress-text">${levelToChapLv(gl)}</div>
+                <div class="progress-sub">Lv.${gl} · Ch.${u.unlockedChapter ?? 1} unlocked</div>
+            </td>
+            <td style="color:var(--text2)">${timeAgo(u.lastSeen)}</td>
+            <td>${locked_
+                        ? `<span class="badge badge-red">🔒 Locked</span>`
+                        : `<span class="badge badge-green">✅ Active</span>`}
+            </td>
+            <td>
+                <div class="action-btns">
+                    <button class="btn-sm btn-sm-blue"  data-uid="${u.uid}">📋 Details</button>
+                    ${locked_
+                        ? `<button class="btn-sm btn-sm-green" data-uid="${u.uid}" data-action="clear">Remove Penalty</button>`
+                        : `<button class="btn-sm btn-sm-red"   data-uid="${u.uid}" data-action="lock">Lock 12h</button>`}
+                </div>
+            </td>`;
+
+                // Details button
+                row.querySelector('[data-uid]').addEventListener('click', () => openModal(u));
+
+                // Quick action (clear/lock)
+                const quickBtn = row.querySelector('[data-action]');
+                if (quickBtn) {
+                    quickBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const action = quickBtn.dataset.action;
+                        quickBtn.textContent = '…';
+                        quickBtn.disabled = true;
+                        if (action === 'clear') await clearLockout(u.uid);
+                        else await lockUser(u.uid);
+                        await loadAllUsers();
+                        buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+                    });
+                }
+
+                tbody.appendChild(row);
+            });
+        }
+
+        function filterUsers(q) {
+            if (!q) return allUsersCache;
+            const lq = q.toLowerCase();
+            return allUsersCache.filter(u =>
+                (u.displayName || '').toLowerCase().includes(lq) ||
+                (u.email || '').toLowerCase().includes(lq)
+            );
+        }
+
+        document.getElementById('search-input').addEventListener('input', e => {
+            buildStudentsTable(filterUsers(e.target.value));
+        });
+
+        // ── Student Detail Modal ──────────────────────────────────
+        let activeUid = null;
+
+        async function openModal(user) {
+            activeUid = user.uid;
+            document.getElementById('modal-name').textContent = `${user.displayName || user.email} — Details`;
+            document.getElementById('modal-close').onclick = closeModal;
+            document.getElementById('student-modal').classList.add('open');
+
+            // Reset controls
+            const lv = user.unlockedLevel ?? 1;
+            const ch = user.unlockedChapter ?? 1;
+            document.getElementById('ctrl-level').value = lv;
+            document.getElementById('lbl-ctrl-level').textContent = lv;
+            document.getElementById('ctrl-chapter').value = ch;
+            document.getElementById('lbl-ctrl-chapter').textContent = ch;
+
+            // Range listeners
+            document.getElementById('ctrl-level').oninput = e =>
+                document.getElementById('lbl-ctrl-level').textContent = e.target.value;
+            document.getElementById('ctrl-chapter').oninput = e =>
+                document.getElementById('lbl-ctrl-chapter').textContent = e.target.value;
+
+            // Action buttons
+            document.getElementById('modal-clear').onclick = async () => {
+                document.getElementById('modal-clear').textContent = '…';
+                await clearLockout(activeUid);
+                document.getElementById('modal-clear').textContent = '✅ Remove Lockout';
+                await loadAllUsers();
+                buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+            };
+            document.getElementById('modal-lock').onclick = async () => {
+                document.getElementById('modal-lock').textContent = '…';
+                await lockUser(activeUid);
+                document.getElementById('modal-lock').textContent = '🔒 Force Lockout (12h)';
+                await loadAllUsers();
+                buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+            };
+            document.getElementById('modal-set-level').onclick = async () => {
+                const newLv = parseInt(document.getElementById('ctrl-level').value);
+                document.getElementById('modal-set-level').textContent = '…';
+                await setUserLevel(activeUid, newLv);
+                document.getElementById('modal-set-level').textContent = 'Apply';
+                await loadAllUsers();
+                buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+            };
+            document.getElementById('modal-set-chapter').onclick = async () => {
+                const newCh = parseInt(document.getElementById('ctrl-chapter').value);
+                document.getElementById('modal-set-chapter').textContent = '…';
+                await setUserChapter(activeUid, newCh);
+                document.getElementById('modal-set-chapter').textContent = 'Apply';
+                await loadAllUsers();
+                buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+            };
+
+            // Load attempts
+            const tbody = document.getElementById('modal-attempts');
+            tbody.innerHTML = `<tr class="loader-row"><td colspan="6"><span class="spinner-sm"></span>Loading…</td></tr>`;
+            document.getElementById('ms-total').textContent = '—';
+            document.getElementById('ms-pass').textContent = '—';
+            document.getElementById('ms-fail').textContent = '—';
+
+            try {
+                const attempts = await getUserAttempts(user.uid);
+                const passes = attempts.filter(a => a.passed).length;
+                const fails = attempts.filter(a => !a.passed).length;
+
+                document.getElementById('ms-total').textContent = attempts.length;
+                document.getElementById('ms-pass').textContent = passes;
+                document.getElementById('ms-fail').textContent = fails;
+
+                tbody.innerHTML = '';
+                if (attempts.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">No attempts recorded yet.</td></tr>`;
+                    return;
+                }
+
+                attempts.forEach(a => {
+                    const when = a.timestamp ? timeAgo(a.timestamp) : '?';
+                    const badge = a.passed
+                        ? `<span class="badge badge-green">✅ Pass</span>`
+                        : `<span class="badge badge-red">❌ Fail</span>`;
+                    const scoreStr = a.score != null ? `${a.score}/${a.total}` : '—';
+                    const pctStr = a.pct != null ? `(${a.pct}%)` : '';
+                    const lvStr = a.type === 'master' ? '—' : (a.level ?? '—');
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                <td><span class="badge ${a.type === 'master' ? 'badge-amber' : 'badge-grey'}">${a.type?.toUpperCase()}</span></td>
+                <td>${a.chapter ?? '—'}</td>
+                <td>${lvStr}</td>
+                <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem">${scoreStr} ${pctStr}</td>
+                <td>${badge}</td>
+                <td style="color:var(--text2)">${when}</td>`;
+                    tbody.appendChild(row);
+                });
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" style="color:var(--red);text-align:center;padding:20px">Failed to load history.</td></tr>`;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('student-modal').classList.remove('open');
+            activeUid = null;
+        }
+
+        // Close on backdrop click
+        document.getElementById('student-modal').addEventListener('click', e => {
+            if (e.target === document.getElementById('student-modal')) closeModal();
+        });
+
+        // ── Settings ──────────────────────────────────────────────
+        async function loadSettings() {
+            try {
+                const cfg = await getGlobalConfig();
+                if (cfg) {
+                    const t = cfg.timeLimit ?? 8;
+                    const ml = cfg.maxMistakesLevel ?? 2;
+                    const mm = cfg.maxMistakesMaster ?? 3;
+                    document.getElementById('rng-timer').value = t;
+                    document.getElementById('lbl-timer').textContent = `${t}s`;
+                    document.getElementById('rng-ml').value = ml;
+                    document.getElementById('lbl-ml').textContent = ml;
+                    document.getElementById('rng-mm').value = mm;
+                    document.getElementById('lbl-mm').textContent = mm;
+                }
+            } catch (_) { }
+        }
+
+        document.getElementById('rng-timer').addEventListener('input', e => {
+            document.getElementById('lbl-timer').textContent = `${e.target.value}s`;
+        });
+        document.getElementById('rng-ml').addEventListener('input', e => {
+            document.getElementById('lbl-ml').textContent = e.target.value;
+        });
+        document.getElementById('rng-mm').addEventListener('input', e => {
+            document.getElementById('lbl-mm').textContent = e.target.value;
+        });
+
+        document.getElementById('btn-save-settings').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-save-settings');
+            const toast = document.getElementById('save-toast');
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+            try {
+                await setGlobalConfig({
+                    timeLimit: parseInt(document.getElementById('rng-timer').value),
+                    maxMistakesLevel: parseInt(document.getElementById('rng-ml').value),
+                    maxMistakesMaster: parseInt(document.getElementById('rng-mm').value)
+                });
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            } catch (err) {
+                alert('Failed to save: ' + err.message);
+            }
+            btn.disabled = false;
+            btn.textContent = 'Save to Firestore';
+        });
+    </script>
+
+</body>
+
+</html>

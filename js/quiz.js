@@ -1,12 +1,17 @@
 import { vocabData } from './data-sector1A.js';
-import { auth, onAuthStateChanged, getUserData, unlockNextLevel, unlockNextChapter, eiffSignOut, logQuizAttempt, checkLockout, clearLockout } from './firebase-config.js';
+import {
+    auth, onAuthStateChanged, getUserData, unlockNextLevel, unlockNextChapter, eiffSignOut,
+    logQuizAttempt, checkLockout, clearLockout, logQuizResult, getGlobalConfig
+} from './firebase-config.js';
 import { showToast } from './auth-ui.js';
 
-// ─── Config ────────────────────────────────
-const PASS_SCORE_LEVEL = 9 / 10;   // 9 out of 10 required (1 mistake max)
+// ─── Config (defaults — overridden by Firestore config/quiz) ────
+const PASS_SCORE_LEVEL = 9 / 10;
 const PASS_SCORE_MASTER = 48 / 50;
 const PASS_SCORE_GRAND = 240 / 250;
-const TIME_LIMIT = 8;              // seconds per question (level quiz only)
+let TIME_LIMIT = 8;  // seconds per level-quiz question
+let MAX_MISTAKES_LEVEL = 2;  // mistakes before ejection (level)
+let MAX_MISTAKES_MASTER = 3;  // mistakes before ejection (master)
 
 // ─── State ─────────────────────────────────
 let currentUser = null;
@@ -26,10 +31,19 @@ const chapter = parseInt(params.get('chapter')) || 1;
 const level = parseInt(params.get('level')) || 1;
 const globalLevel = (chapter - 1) * 6 + level;
 
-// ─── Auth Guard & Internal Lockout Check ──────
 onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = 'index.html'; return; }
     currentUser = user;
+
+    // Load remote config (timer, mistake limits) — falls back to defaults
+    try {
+        const cfg = await getGlobalConfig();
+        if (cfg) {
+            if (cfg.timeLimit != null) TIME_LIMIT = cfg.timeLimit;
+            if (cfg.maxMistakesLevel != null) MAX_MISTAKES_LEVEL = cfg.maxMistakesLevel;
+            if (cfg.maxMistakesMaster != null) MAX_MISTAKES_MASTER = cfg.maxMistakesMaster;
+        }
+    } catch (_) { /* use defaults if config unreadable */ }
 
     // Safety Layer: Double check lockout here in case they bypassed the button
     const lockout = await checkLockout(user.uid);
@@ -250,10 +264,9 @@ function handleAnswer(selectedBtn, correctEn, timedOut = false) {
         feedbackEl.textContent = timedOut ? '⏰ Time\'s up!' : '❌ Incorrect!';
 
         // ── Mistake ejection ──
-        // Level quiz: eject at 2 mistakes. Master quiz: eject at 3 mistakes.
         if (type === 'level' || type === 'master') {
             wrongCount++;
-            const limit = type === 'master' ? 3 : 2;
+            const limit = type === 'master' ? MAX_MISTAKES_MASTER : MAX_MISTAKES_LEVEL;
             if (wrongCount >= limit) {
                 feedbackEl.style.display = 'block';
                 if (btnNext) btnNext.style.display = 'none';
@@ -342,6 +355,16 @@ async function showResults() {
     let chapterUnlocked = false;
     if (passed && type === 'master' && currentUser) {
         chapterUnlocked = await unlockNextChapter(currentUser.uid, chapter);
+    }
+
+    // Log this quiz result for admin stats
+    if (currentUser) {
+        try {
+            await logQuizResult(currentUser.uid, {
+                type, chapter, level, score, total: quizWords.length, passed,
+                wrongCount, pct: Math.round(pct * 100)
+            });
+        } catch (_) { /* non-critical */ }
     }
 
     // Determine where the button goes

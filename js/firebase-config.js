@@ -1,187 +1,150 @@
-// =============================================
-// EiFF PROJECT — FIREBASE CONFIGURATION
-// Project: eiff-project
-// SDK Version: 12.9.0
-// =============================================
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp }
+import {
+    getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
+    collection, getDocs, addDoc, query, orderBy, limit
+}
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-const firebaseConfig = {
+const app = initializeApp({
     apiKey: "AIzaSyCezQwknw42rKnO3kwaaAmLEcUmUeJlkPU",
     authDomain: "eiff-project.firebaseapp.com",
     projectId: "eiff-project",
     storageBucket: "eiff-project.firebasestorage.app",
     messagingSenderId: "779318802519",
-    appId: "1:779318802519:web:931e52f38afd73c9350b12",
-    measurementId: "G-QTPBVL3ZBW"
-};
+    appId: "1:779318802519:web:931e52f38afd73c9350b12"
+});
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// =============================================
-// AUTH HELPERS
-// =============================================
+// ── Auth ──────────────────────────────────────────────────────────
 
-/**
- * Sign up a new user with email/password.
- * Creates a Firestore document for the new user with default progress.
- */
 async function eiffSignUp(email, password, displayName) {
     const userCred = await createUserWithEmailAndPassword(auth, email, password);
     const uid = userCred.user.uid;
-    // Create user progress document in Firestore
     await setDoc(doc(db, "users", uid), {
         displayName: displayName || email.split('@')[0],
-        email: email,
-        unlockedLevel: 1,     // Default — can only access Level 1
-        unlockedChapter: 1,   // Default — only Chapter 1 is open
+        email,
+        unlockedLevel: 1,
+        unlockedChapter: 1,
         createdAt: serverTimestamp(),
         lastSeen: serverTimestamp()
     });
     return userCred.user;
 }
 
-/**
- * Sign in existing user.
- */
 async function eiffSignIn(email, password) {
     const userCred = await signInWithEmailAndPassword(auth, email, password);
-    // Update lastSeen
     await updateDoc(doc(db, "users", userCred.user.uid), { lastSeen: serverTimestamp() });
     return userCred.user;
 }
 
-/**
- * Sign out current user.
- */
-async function eiffSignOut() {
-    await signOut(auth);
-}
+async function eiffSignOut() { await signOut(auth); }
 
-// =============================================
-// FIRESTORE HELPERS
-// =============================================
+// ── User Data ─────────────────────────────────────────────────────
 
-/**
- * Get a user's progress document from Firestore.
- * @returns {Object} User data including unlockedLevel
- */
 async function getUserData(uid) {
     const snap = await getDoc(doc(db, "users", uid));
-    if (snap.exists()) return snap.data();
-    return null;
+    return snap.exists() ? snap.data() : null;
 }
 
-/**
- * Log a quiz attempt to start the 48-hour lockout.
- */
+async function getAllUsers() {
+    const snap = await getDocs(collection(db, "users"));
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+}
+
+// ── Lockout ───────────────────────────────────────────────────────
+
 async function logQuizAttempt(uid) {
-    await updateDoc(doc(db, "users", uid), {
-        lastAttempt: serverTimestamp()
-    });
+    await updateDoc(doc(db, "users", uid), { lastAttempt: serverTimestamp() });
 }
 
-/**
- * Clear the lockout timer for a user who has PASSED a quiz.
- * Setting lastAttempt to null means checkLockout will return isLocked: false.
- */
 async function clearLockout(uid) {
-    await updateDoc(doc(db, "users", uid), {
-        lastAttempt: null
+    await updateDoc(doc(db, "users", uid), { lastAttempt: null });
+}
+
+async function lockUser(uid) {
+    await updateDoc(doc(db, "users", uid), { lastAttempt: serverTimestamp() });
+}
+
+async function checkLockout(uid) {
+    const data = await getUserData(uid);
+    if (!data || !data.lastAttempt) return { isLocked: false, timeLeftMs: 0 };
+    const elapsed = Date.now() - data.lastAttempt.toDate().getTime();
+    const timeLeft = 12 * 60 * 60 * 1000 - elapsed;
+    return { isLocked: timeLeft > 0, timeLeftMs: Math.max(0, timeLeft) };
+}
+
+// ── Level / Chapter Progress ──────────────────────────────────────
+
+async function unlockNextLevel(uid, currentLevel) {
+    const data = await getUserData(uid);
+    if (!data) return false;
+    const next = currentLevel + 1;
+    if (data.unlockedLevel === currentLevel && next <= 60) {
+        await updateDoc(doc(db, "users", uid), { unlockedLevel: next, lastSeen: serverTimestamp() });
+        return true;
+    }
+    return false;
+}
+
+async function unlockNextChapter(uid, currentChapter) {
+    const data = await getUserData(uid);
+    if (!data) return false;
+    const next = currentChapter + 1;
+    if (currentChapter >= (data.unlockedChapter ?? 1) && next <= 10) {
+        await updateDoc(doc(db, "users", uid), { unlockedChapter: next, lastSeen: serverTimestamp() });
+        return true;
+    }
+    return false;
+}
+
+// Admin: force-set level or chapter for a user
+async function setUserLevel(uid, level) {
+    await updateDoc(doc(db, "users", uid), { unlockedLevel: parseInt(level), lastSeen: serverTimestamp() });
+}
+
+async function setUserChapter(uid, chapter) {
+    await updateDoc(doc(db, "users", uid), { unlockedChapter: parseInt(chapter), lastSeen: serverTimestamp() });
+}
+
+// ── Quiz Attempt Logging ──────────────────────────────────────────
+
+async function logQuizResult(uid, result) {
+    // result: { type, chapter, level, score, total, passed }
+    await addDoc(collection(db, "users", uid, "attempts"), {
+        ...result,
+        timestamp: serverTimestamp()
     });
 }
 
-/**
- * Check if the user is currently locked out.
- * Returns { isLocked: bool, timeLeftMs: number }
- */
-async function checkLockout(uid) {
-    const userData = await getUserData(uid);
-    if (!userData || !userData.lastAttempt) return { isLocked: false, timeLeftMs: 0 };
-
-    const lastAttempt = userData.lastAttempt.toDate().getTime();
-    const now = Date.now();
-
-    const LOCKOUT_PERIOD = 12 * 60 * 60 * 1000; // 12 hours
-    const elapsed = now - lastAttempt;
-    const timeLeft = LOCKOUT_PERIOD - elapsed;
-
-    return {
-        isLocked: timeLeft > 0,
-        timeLeftMs: Math.max(0, timeLeft)
-    };
+async function getUserAttempts(uid) {
+    const q = query(collection(db, "users", uid, "attempts"), orderBy("timestamp", "desc"), limit(30));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-/**
- * Unlock the next level for the current user.
- */
-async function unlockNextLevel(uid, currentLevel) {
-    const userData = await getUserData(uid);
-    if (!userData) return;
+// ── Global Config ─────────────────────────────────────────────────
 
-    const maxLevels = 60;
-    const nextLevel = currentLevel + 1;
-
-    if (userData.unlockedLevel === currentLevel && nextLevel <= maxLevels) {
-        await updateDoc(doc(db, "users", uid), {
-            unlockedLevel: nextLevel,
-            lastSeen: serverTimestamp()
-        });
-        return true;
-    }
-    return false;
+async function getGlobalConfig() {
+    const snap = await getDoc(doc(db, "config", "quiz"));
+    return snap.exists() ? snap.data() : null;
 }
 
-/**
- * Unlock the next chapter after passing a Master Quiz.
- * unlockedChapter tracks the highest chapter whose master quiz was passed.
- * Chapter N+1 becomes accessible once unlockedChapter >= N.
- */
-async function unlockNextChapter(uid, currentChapter) {
-    const userData = await getUserData(uid);
-    if (!userData) return false;
-
-    const TOTAL_CHAPTERS = 10;
-    const nextChapter = currentChapter + 1;
-    const currentUnlocked = userData.unlockedChapter ?? 1;
-
-    // Only advance if this chapter is exactly the frontier
-    if (currentChapter >= currentUnlocked && nextChapter <= TOTAL_CHAPTERS) {
-        await updateDoc(doc(db, "users", uid), {
-            unlockedChapter: nextChapter,
-            lastSeen: serverTimestamp()
-        });
-        return true;
-    }
-    return false;
+async function setGlobalConfig(config) {
+    await setDoc(doc(db, "config", "quiz"), config, { merge: true });
 }
 
-// =============================================
-// AUTH STATE OBSERVER (Used on each page)
-// =============================================
-// Pages call this to know if user is logged in.
-// Usage: onAuthStateChanged(auth, callback)
+// ── Exports ───────────────────────────────────────────────────────
 
 export {
-    auth,
-    db,
-    onAuthStateChanged,
-    eiffSignUp,
-    eiffSignIn,
-    eiffSignOut,
-    getUserData,
-    unlockNextLevel,
-    unlockNextChapter,
-    logQuizAttempt,
-    checkLockout,
-    clearLockout
+    auth, db, onAuthStateChanged,
+    eiffSignUp, eiffSignIn, eiffSignOut,
+    getUserData, getAllUsers,
+    unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
+    logQuizAttempt, lockUser, checkLockout, clearLockout,
+    logQuizResult, getUserAttempts,
+    getGlobalConfig, setGlobalConfig
 };
