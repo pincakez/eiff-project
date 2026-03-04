@@ -1013,6 +1013,31 @@ tbody tr:last-child td {
   transition: var(--transition-bounce);
   text-align: center;
   font-family: "Inter", sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Arabic answer — headline size, heavy weight */
+.choice-ar {
+  display: block;
+  font-family: "Cairo", sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.4;
+  direction: rtl;
+}
+
+/* Egyptian dialect — smaller, dark grey, below Arabic */
+.choice-eg {
+  display: block;
+  font-family: "Cairo", sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #5f6368;
+  direction: rtl;
 }
 
 .quiz-choice:hover:not(:disabled) {
@@ -1462,4 +1487,324 @@ tbody tr:last-child td {
   font-size: 1.1rem;
   line-height: 1.8;
   color: var(--text);
+}
+
+/* =============================================
+   TIMER BAR (Level Quizzes)
+   ============================================= */
+.timer-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.timer-bar-track {
+  flex: 1;
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 50px;
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+}
+
+.timer-bar-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 50px;
+  background: var(--g-green, #22c55e);
+  transition: width 0.9s linear, background 0.4s ease;
+}
+
+.timer-text {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--text);
+  min-width: 24px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =============================================
+   GET OUT LOOSER EJECTION MODAL
+   ============================================= */
+.looser-modal {
+  text-align: center !important;
+  direction: ltr !important;
+  background: linear-gradient(145deg, #1a0000, #2d0000) !important;
+  border: 2px solid var(--g-red) !important;
+  color: white !important;
+}
+
+.looser-emoji {
+  font-size: 4rem;
+  animation: shakeThat 0.5s ease 0.1s both;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.looser-modal h2 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--g-red) !important;
+  letter-spacing: -1px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  font-family: "Inter", sans-serif !important;
+}
+
+.looser-modal p {
+  font-family: "Cairo", sans-serif;
+  color: #ffbaba !important;
+  font-size: 1rem;
+  line-height: 1.7;
+  margin-bottom: 24px;
+  direction: rtl;
+}
+
+.btn-looser {
+  display: inline-block;
+  padding: 14px 44px;
+  border-radius: 50px;
+  background: var(--g-red);
+  color: white;
+  font-weight: 800;
+  font-size: 1.1rem;
+  border: none;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  letter-spacing: 1px;
+  transition: var(--transition);
+  box-shadow: 0 0 24px rgba(234, 67, 53, 0.6);
+  animation: pulseDanger 1.2s ease infinite;
+}
+
+.btn-looser:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 40px rgba(234, 67, 53, 0.9);
+}
+
+@keyframes shakeThat {
+  0% {
+    transform: rotate(0deg) scale(0);
+    opacity: 0;
+  }
+
+  40% {
+    transform: rotate(-12deg) scale(1.2);
+    opacity: 1;
+  }
+
+  60% {
+    transform: rotate(10deg) scale(1.1);
+  }
+
+  80% {
+    transform: rotate(-6deg) scale(1.05);
+  }
+
+  100% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseDanger {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(234, 67, 53, 0.5);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(234, 67, 53, 0.9);
+  }
+}
+
+.master-unlock-msg {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--g-yellow, #f59e0b);
+  margin-bottom: 16px;
+}
+
+/* =============================================
+   CHAPTER UNLOCK MESSAGE (Result screen)
+   ============================================= */
+.chapter-unlock-msg {
+  display: inline-block;
+  margin: 0 auto 18px;
+  padding: 10px 24px;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #d4edda, #c3e6cb);
+  border: 2px solid #28a745;
+  color: #155724;
+  font-weight: 800;
+  font-size: 1rem;
+  animation: pulseYellow 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* =============================================
+   LOCKED CHAPTER PILL (Nav)
+   ============================================= */
+.pill-btn.pill-locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: auto;
+  /* keep so we can show toast */
+  filter: grayscale(1);
+}
+
+/* =============================================
+   MASTER QUIZ CARD (Dashboard grid)
+   ============================================= */
+.master-card {
+  background: linear-gradient(135deg, #fff9e6, #fff3cc) !important;
+  border: 2px solid var(--g-yellow, #f59e0b) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.master-card::before {
+  background: var(--g-yellow, #f59e0b) !important;
+}
+
+.master-card:hover:not(.locked) {
+  border-color: #d97706 !important;
+  box-shadow: 0 8px 30px rgba(245, 158, 11, 0.35) !important;
+}
+
+.master-card.completed {
+  background: linear-gradient(135deg, #e6f9ee, #d1f5e0) !important;
+  border-color: var(--g-green, #34a853) !important;
+}
+
+.master-icon {
+  font-size: 2.4rem !important;
+}
+
+.master-label {
+  color: #b45309 !important;
+  font-size: 0.85rem !important;
+  letter-spacing: 2px;
+}
+
+.master-card.completed .master-label {
+  color: #155724 !important;
+}
+
+.master-hint {
+  font-size: 0.7rem;
+  color: #92400e;
+  margin-top: 6px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.master-hint.master-passed {
+  color: #155724;
+}
+
+/* =============================================
+   MASTER QUIZ — QUESTION CARD VARIANT
+   ============================================= */
+.quiz-card--master {
+  background: linear-gradient(145deg, #1a1a2e, #16213e) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.4) !important;
+  color: white;
+  box-shadow: 0 8px 40px rgba(245, 158, 11, 0.15), var(--shadow-lg) !important;
+}
+
+.quiz-card--master .quiz-q-label {
+  color: #fbbf24;
+  letter-spacing: 2.5px;
+}
+
+.quiz-card--master .quiz-question {
+  color: #f1f5f9;
+}
+
+.quiz-card--master .quiz-choice {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.quiz-card--master .quiz-choice .choice-ar {
+  color: #f1f5f9;
+}
+
+.quiz-card--master .quiz-choice .choice-eg {
+  color: #94a3b8;
+}
+
+.quiz-card--master .quiz-choice:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: #fbbf24;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.25);
+}
+
+.quiz-card--master .quiz-choice.correct {
+  border-color: #34d399;
+  background: rgba(52, 211, 153, 0.15);
+  color: #6ee7b7;
+}
+
+.quiz-card--master .quiz-choice.correct .choice-ar,
+.quiz-card--master .quiz-choice.correct .choice-eg {
+  color: #6ee7b7;
+}
+
+.quiz-card--master .quiz-choice.wrong {
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
+}
+
+/* =============================================
+   MASTER QUIZ — FULL-PAGE BODY THEME
+   ============================================= */
+body.master-quiz-active {
+  background: #0f0f1a;
+}
+
+body.master-quiz-active .topbar {
+  background: rgba(15, 15, 26, 0.95);
+  border-bottom-color: rgba(245, 158, 11, 0.25);
+}
+
+body.master-quiz-active .quiz-progress-bar {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+body.master-quiz-active .quiz-progress-fill {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+body.master-quiz-active #q-counter,
+body.master-quiz-active .quiz-progress-text {
+  color: #94a3b8;
+}
+
+body.master-quiz-active .quiz-score-badge {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+/* Master result card */
+.quiz-result-card--master {
+  background: linear-gradient(145deg, #1a1a2e, #16213e) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  color: white;
+  box-shadow: 0 12px 48px rgba(245, 158, 11, 0.2), var(--shadow-xl) !important;
+}
+
+.quiz-result-card--master h2,
+.quiz-result-card--master p {
+  color: #f1f5f9 !important;
+}
+
+.quiz-result-card--master .result-score-big {
+  color: #fbbf24;
 }

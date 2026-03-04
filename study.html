@@ -74,15 +74,15 @@
         // ─── Auth Guard & Lockout Check ────────────
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = 'index.html'; return; }
-            
+
             const btnStart = document.getElementById('btn-start-quiz');
             const { checkLockout } = await import('./js/firebase-config.js');
-            
+
             const lockout = await checkLockout(user.uid);
             if (lockout.isLocked) {
                 btnStart.disabled = true;
                 btnStart.classList.add('btn-locked');
-                
+
                 // Start a live countdown
                 let remaining = lockout.timeLeftMs;
                 const interval = setInterval(() => {
@@ -206,7 +206,7 @@
             modal.innerHTML = `
                 <div class="modal-box arabic-modal">
                     <h2>تحذير يا بطل</h2>
-                    <p>لو فشلت في الاختبار, مش هتقدر تدخله تاني غير بعد يومين يا باشة</p>
+                    <p>لو فشلت في الاختبار, مش هتقدر تدخله تاني غير بعد 12 ساعة يا باشة</p>
                     <div style="display:flex; gap:10px; margin-top:24px; direction:rtl;">
                         <button class="btn-primary" id="btn-quiz-enter" style="flex:1;">دخول</button>
                         <button class="btn-secondary" id="btn-quiz-cancel" style="flex:1;">لاء استنى</button>
@@ -224,4 +224,5 @@
         });
     </script>
 </body>
+
 </html>

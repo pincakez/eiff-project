@@ -42,7 +42,8 @@ async function eiffSignUp(email, password, displayName) {
     await setDoc(doc(db, "users", uid), {
         displayName: displayName || email.split('@')[0],
         email: email,
-        unlockedLevel: 1,      // Default — can only access Level 1
+        unlockedLevel: 1,     // Default — can only access Level 1
+        unlockedChapter: 1,   // Default — only Chapter 1 is open
         createdAt: serverTimestamp(),
         lastSeen: serverTimestamp()
     });
@@ -90,6 +91,16 @@ async function logQuizAttempt(uid) {
 }
 
 /**
+ * Clear the lockout timer for a user who has PASSED a quiz.
+ * Setting lastAttempt to null means checkLockout will return isLocked: false.
+ */
+async function clearLockout(uid) {
+    await updateDoc(doc(db, "users", uid), {
+        lastAttempt: null
+    });
+}
+
+/**
  * Check if the user is currently locked out.
  * Returns { isLocked: bool, timeLeftMs: number }
  */
@@ -98,9 +109,9 @@ async function checkLockout(uid) {
     if (!userData || !userData.lastAttempt) return { isLocked: false, timeLeftMs: 0 };
 
     const lastAttempt = userData.lastAttempt.toDate().getTime();
-    const now = Date.now(); 
-    
-    const LOCKOUT_PERIOD = 48 * 60 * 60 * 1000; 
+    const now = Date.now();
+
+    const LOCKOUT_PERIOD = 12 * 60 * 60 * 1000; // 12 hours
     const elapsed = now - lastAttempt;
     const timeLeft = LOCKOUT_PERIOD - elapsed;
 
@@ -130,6 +141,30 @@ async function unlockNextLevel(uid, currentLevel) {
     return false;
 }
 
+/**
+ * Unlock the next chapter after passing a Master Quiz.
+ * unlockedChapter tracks the highest chapter whose master quiz was passed.
+ * Chapter N+1 becomes accessible once unlockedChapter >= N.
+ */
+async function unlockNextChapter(uid, currentChapter) {
+    const userData = await getUserData(uid);
+    if (!userData) return false;
+
+    const TOTAL_CHAPTERS = 10;
+    const nextChapter = currentChapter + 1;
+    const currentUnlocked = userData.unlockedChapter ?? 1;
+
+    // Only advance if this chapter is exactly the frontier
+    if (currentChapter >= currentUnlocked && nextChapter <= TOTAL_CHAPTERS) {
+        await updateDoc(doc(db, "users", uid), {
+            unlockedChapter: nextChapter,
+            lastSeen: serverTimestamp()
+        });
+        return true;
+    }
+    return false;
+}
+
 // =============================================
 // AUTH STATE OBSERVER (Used on each page)
 // =============================================
@@ -145,6 +180,8 @@ export {
     eiffSignOut,
     getUserData,
     unlockNextLevel,
+    unlockNextChapter,
     logQuizAttempt,
-    checkLockout
+    checkLockout,
+    clearLockout
 };

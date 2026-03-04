@@ -1,20 +1,23 @@
 import { vocabData } from './data-sector1A.js';
-import { auth, onAuthStateChanged, getUserData, unlockNextLevel, eiffSignOut, logQuizAttempt, checkLockout } from './firebase-config.js';
+import { auth, onAuthStateChanged, getUserData, unlockNextLevel, unlockNextChapter, eiffSignOut, logQuizAttempt, checkLockout, clearLockout } from './firebase-config.js';
 import { showToast } from './auth-ui.js';
 
 // ─── Config ────────────────────────────────
-const PASS_SCORE_LEVEL = 0.8;
-const PASS_SCORE_MASTER = 48 / 50; 
+const PASS_SCORE_LEVEL = 9 / 10;   // 9 out of 10 required (1 mistake max)
+const PASS_SCORE_MASTER = 48 / 50;
 const PASS_SCORE_GRAND = 240 / 250;
+const TIME_LIMIT = 8;              // seconds per question (level quiz only)
 
 // ─── State ─────────────────────────────────
 let currentUser = null;
 let quizWords = [];
-let allWords = [];   
+let allWords = [];
 let qIndex = 0;
 let score = 0;
 let answered = false;
 let passesRemaining = 2;
+let wrongCount = 0;       // tracks mistakes for level quiz ejection
+let timerInterval = null; // reference to the countdown setInterval
 
 // ─── Parse URL ─────────────────────────────
 const params = new URLSearchParams(window.location.search);
@@ -27,18 +30,18 @@ const globalLevel = (chapter - 1) * 6 + level;
 onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = 'index.html'; return; }
     currentUser = user;
-    
+
     // Safety Layer: Double check lockout here in case they bypassed the button
     const lockout = await checkLockout(user.uid);
     if (lockout.isLocked) {
-        alert('You are currently locked out of quizzes for 48 hours.');
+        alert('أنت محظور من الاختبارات لمدة 12 ساعة يا باشة.');
         window.location.href = 'dashboard.html';
         return;
     }
-    
+
     // Start Lockout as soon as user lands here
     await logQuizAttempt(user.uid);
-    
+
     initQuiz();
 });
 
@@ -59,6 +62,8 @@ function initQuiz() {
     }
 
     document.title = `EiFF ${type.toUpperCase()} Quiz`;
+    // Add body class so CSS can theme the whole page for master
+    if (type === 'master') document.body.classList.add('master-quiz-active');
     showQuestion();
 }
 
@@ -67,13 +72,24 @@ function buildMasterQuizWords(ch) {
     for (let l = 1; l <= 6; l++) {
         if (vocabData[ch] && vocabData[ch][l]) pool.push(...vocabData[ch][l]);
     }
-    allWords = [...pool];
-    return shuffle(pool).slice(0, 50);
+    if (pool.length === 0) return [];
+
+    allWords = [...pool]; // full pool used for distractor generation
+
+    // Always produce exactly 50 questions.
+    // If pool < 50, cycle through shuffled copies until we reach 50.
+    const TARGET = 50;
+    let result = [];
+    while (result.length < TARGET) {
+        const needed = TARGET - result.length;
+        result.push(...shuffle(pool).slice(0, needed));
+    }
+    return result; // exactly 50 items
 }
 
 function buildGrandQuizWords() {
     let ch1_3 = [], ch4_6 = [], ch7_10 = [];
-    
+
     for (let c = 1; c <= 10; c++) {
         for (let l = 1; l <= 6; l++) {
             const words = (vocabData[c] && vocabData[c][l]) ? vocabData[c][l] : [];
@@ -82,24 +98,68 @@ function buildGrandQuizWords() {
             else ch7_10.push(...words);
         }
     }
-    
+
     // Balanced selection: 25% (63), 25% (62), 50% (125) -> 250 total
     const q1 = shuffle(ch1_3).slice(0, 63);
     const q2 = shuffle(ch4_6).slice(0, 62);
     const q3 = shuffle(ch7_10).slice(0, 125);
-    
+
     allWords = [...ch1_3, ...ch4_6, ...ch7_10];
     return shuffle([...q1, ...q2, ...q3]);
+}
+
+// ─── Timer Helpers ─────────────────────────
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function startTimer(correctEn) {
+    stopTimer();
+    let secondsLeft = TIME_LIMIT;
+    const timerBar = document.getElementById('timer-bar-fill');
+    const timerText = document.getElementById('timer-text');
+
+    // Initialise bar
+    if (timerBar) timerBar.style.width = '100%';
+    if (timerText) timerText.textContent = secondsLeft;
+
+    timerInterval = setInterval(() => {
+        secondsLeft--;
+        const pct = (secondsLeft / TIME_LIMIT) * 100;
+
+        if (timerBar) {
+            timerBar.style.width = `${Math.max(0, pct)}%`;
+            // Colour shifts: green → yellow → red
+            if (secondsLeft <= 2) timerBar.style.background = 'var(--g-red, #ef4444)';
+            else if (secondsLeft <= 4) timerBar.style.background = '#f59e0b';
+            else timerBar.style.background = 'var(--g-green, #22c55e)';
+        }
+        if (timerText) timerText.textContent = secondsLeft;
+
+        if (secondsLeft <= 0) {
+            stopTimer();
+            // Time's up — treat as wrong answer
+            if (!answered) {
+                // Find any answerbutton to pass as "wrong"
+                const anyBtn = document.querySelector('.quiz-choice:not([data-en="' + correctEn + '"])');
+                handleAnswer(anyBtn || document.querySelector('.quiz-choice'), correctEn, true);
+            }
+        }
+    }, 1000);
 }
 
 // ─── Render a Question ─────────────────────
 function showQuestion() {
     if (qIndex >= quizWords.length) { showResults(); return; }
 
+    stopTimer();
     answered = false;
     const word = quizWords[qIndex];
     const total = quizWords.length;
-    
+
     const progressFill = document.getElementById('progress-fill');
     const counter = document.getElementById('q-counter');
     const scoreBadge = document.getElementById('score-badge');
@@ -110,23 +170,42 @@ function showQuestion() {
     if (scoreBadge) scoreBadge.textContent = `Score: ${score}`;
     if (btnNext) btnNext.style.display = 'none';
 
-    // Choices
-    const distractors = shuffle(allWords.filter(w => w.en !== word.en)).slice(0, 3);
+    // ── Choices: guarantee 4 fully-unique options (by english key) ──
+    const usedKeys = new Set([word.en]);
+    const candidatePool = shuffle(allWords.filter(w => w.en !== word.en));
+    const distractors = [];
+    for (const candidate of candidatePool) {
+        if (!usedKeys.has(candidate.en)) {
+            usedKeys.add(candidate.en);
+            distractors.push(candidate);
+            if (distractors.length === 3) break;
+        }
+    }
     const choices = shuffle([word, ...distractors]);
 
     const area = document.getElementById('quiz-area');
     area.innerHTML = `
-        <div class="quiz-card">
-            <div class="quiz-q-label">What is the Arabic meaning of…</div>
+        <div class="quiz-card${type === 'master' ? ' quiz-card--master' : ''}">
+            <div class="quiz-q-label">${type === 'master' ? '🏆 MASTER QUIZ — ' : ''}What is the Arabic meaning of…</div>
             <div class="quiz-question">${word.en}</div>
+
+            ${type === 'level' ? `
+            <div class="timer-wrapper">
+                <div class="timer-bar-track">
+                    <div class="timer-bar-fill" id="timer-bar-fill"></div>
+                </div>
+                <span class="timer-text" id="timer-text">${TIME_LIMIT}</span>
+            </div>` : ''}
+
             <div class="quiz-choices">
-                ${choices.map((c, i) => `
+                ${choices.map((c) => `
                     <button class="quiz-choice" data-en="${c.en}">
-                        ${c.ar}<br><small>${c.eg}</small>
+                        <span class="choice-ar">${c.ar}</span>
+                        <span class="choice-eg">${c.eg}</span>
                     </button>
                 `).join('')}
             </div>
-            
+
             ${(type !== 'level' && passesRemaining > 0) ? `
                 <button class="btn-pass" id="btn-pass-question">
                     Skip / Pass (${passesRemaining} left)
@@ -141,14 +220,18 @@ function showQuestion() {
     });
 
     document.getElementById('btn-pass-question')?.addEventListener('click', showPassModal);
+
+    // Start 8-second countdown only for level quizzes
+    if (type === 'level') startTimer(word.en);
 }
 
 // ─── Handle Answer ─────────────────────────
-function handleAnswer(selectedBtn, correctEn) {
+function handleAnswer(selectedBtn, correctEn, timedOut = false) {
     if (answered) return;
     answered = true;
+    stopTimer();
 
-    const isCorrect = selectedBtn.dataset.en === correctEn;
+    const isCorrect = !timedOut && selectedBtn && selectedBtn.dataset.en === correctEn;
     const feedbackEl = document.getElementById('quiz-feedback');
     const btnNext = document.getElementById('btn-next');
 
@@ -164,10 +247,44 @@ function handleAnswer(selectedBtn, correctEn) {
         feedbackEl.textContent = '✅ Correct!';
     } else {
         feedbackEl.className = 'quiz-feedback wrong';
-        feedbackEl.textContent = '❌ Incorrect!';
+        feedbackEl.textContent = timedOut ? '⏰ Time\'s up!' : '❌ Incorrect!';
+
+        // ── Mistake ejection ──
+        // Level quiz: eject at 2 mistakes. Master quiz: eject at 3 mistakes.
+        if (type === 'level' || type === 'master') {
+            wrongCount++;
+            const limit = type === 'master' ? 3 : 2;
+            if (wrongCount >= limit) {
+                feedbackEl.style.display = 'block';
+                if (btnNext) btnNext.style.display = 'none';
+                setTimeout(() => showLooserModal(), 800);
+                return;
+            }
+        }
     }
+
     feedbackEl.style.display = 'block';
     if (btnNext) btnNext.style.display = 'block';
+}
+
+// ─── GET OUT LOOSER Modal ───────────────────
+function showLooserModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal-box arabic-modal looser-modal">
+            <div class="looser-emoji">💀</div>
+            <h2>GET OUT LOOSER</h2>
+            <p>لقيت غلطتين... يلا بره! ارجع ذاكر وارجعلنا بعد 12 ساعة يا باشة 🚪</p>
+            <button class="btn-looser" id="btn-looser-confirm">YES I AM</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#btn-looser-confirm').onclick = () => {
+        // Redirect back to the quiz page for this same level (they can't enter — lockout is active)
+        window.location.href = `study.html?chapter=${chapter}&level=${level}`;
+    };
 }
 
 // ─── Pass Logic ────────────────────────────
@@ -190,8 +307,8 @@ function showPassModal() {
         passesRemaining--;
         qIndex = Math.max(0, qIndex - 2); // Penalty
         const newWord = shuffle(allWords)[0];
-        quizWords[qIndex] = newWord; 
-        
+        quizWords[qIndex] = newWord;
+
         modal.remove();
         showQuestion();
     };
@@ -201,27 +318,54 @@ function showPassModal() {
 
 // ─── Results ───────────────────────────────
 async function showResults() {
+    stopTimer();
     const total = quizWords.length;
     const pct = score / total;
-    
+
     let passThreshold = PASS_SCORE_LEVEL;
     if (type === 'master') passThreshold = PASS_SCORE_MASTER;
     if (type === 'grand') passThreshold = PASS_SCORE_GRAND;
-    
+
     const passed = pct >= passThreshold;
-    
+
+    // Clear lockout immediately on pass
+    if (passed && currentUser) {
+        await clearLockout(currentUser.uid);
+    }
+
+    // Level quiz pass: unlock next level
     if (passed && type === 'level' && currentUser) {
         await unlockNextLevel(currentUser.uid, globalLevel);
     }
 
+    // Master quiz pass: unlock next chapter
+    let chapterUnlocked = false;
+    if (passed && type === 'master' && currentUser) {
+        chapterUnlocked = await unlockNextChapter(currentUser.uid, chapter);
+    }
+
+    // Determine where the button goes
+    let nextUrl = 'dashboard.html';
+    if (passed && type === 'level' && level === 6) {
+        nextUrl = `quiz.html?type=master&chapter=${chapter}`;
+    }
+
     const area = document.getElementById('quiz-area');
+    const resultClass = type === 'master' ? 'quiz-result-card quiz-result-card--master' : 'quiz-result-card';
+
     area.innerHTML = `
-        <div class="quiz-result-card">
-            <h2>${passed ? 'You Passed!' : 'Failed'}</h2>
+        <div class="${resultClass}">
+            <h2>${passed ? '🎉 You Passed!' : '😬 Failed'}</h2>
             <div class="result-score-big">${Math.round(pct * 100)}%</div>
             <p>You got ${score} out of ${total} correct.</p>
-            <button class="btn-result" onclick="window.location.href='dashboard.html'">
-                Back to Dashboard
+            ${passed && type === 'level' && level === 6
+            ? `<p class="master-unlock-msg">🏆 All 6 levels complete! Time for the Master Quiz!</p>`
+            : ''}
+            ${chapterUnlocked
+            ? `<p class="chapter-unlock-msg">🔓 Chapter ${chapter + 1} is now unlocked!</p>`
+            : ''}
+            <button class="btn-result" onclick="window.location.href='${nextUrl}'">
+                ${passed && type === 'level' && level === 6 ? 'Start Master Quiz →' : 'Back to Dashboard'}
             </button>
         </div>
     `;

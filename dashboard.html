@@ -34,7 +34,7 @@
         <!-- Page header + user badge -->
         <div class="page-header" id="page-header">
             <h1>📚 Level Selection</h1>
-            <p>Choose a chapter, then pick your level to start studying.</p>
+            <p>Complete all 6 levels → pass the Master Quiz → unlock the next chapter.</p>
             <div class="user-badge" id="user-badge" aria-live="polite">
                 <div class="user-badge-avatar" id="user-avatar">?</div>
                 <span id="user-name">Loading…</span>
@@ -43,7 +43,6 @@
 
         <!-- Level Grid -->
         <section id="levels-container" aria-label="Study levels">
-            <!-- Levels are built by JS -->
             <div class="loading-spinner" role="status">
                 <div class="spinner"></div>
                 <span>Loading your progress…</span>
@@ -64,12 +63,6 @@
         const LEVELS_PER_CHAP = 6;
         const WORDS_PER_LEVEL = 50;
 
-        // Color cycle for chapter pills
-        const CHAP_COLORS = [
-            'var(--g-blue)', 'var(--g-red)', 'var(--g-green)', 'var(--g-yellow)',
-            '#8B5CF6', '#F59E0B', '#06B6D4', '#EF4444', '#10B981', '#6366F1'
-        ];
-
         // ─── State ─────────────────────────────────
         let currentUser = null;
         let userData = null;
@@ -78,7 +71,6 @@
         // ─── Auth Guard ─────────────────────────────
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                // Not logged in — redirect to home
                 window.location.href = 'index.html';
                 return;
             }
@@ -105,13 +97,22 @@
         function buildChapterNav() {
             const nav = document.getElementById('chap-nav');
             nav.innerHTML = '';
+            // unlockedChapter: the index of the first chapter the user hasn't yet
+            // unlocked past. Chapter 1 is always accessible (default = 1).
+            const unlockedChapter = userData?.unlockedChapter ?? 1;
+
             for (let c = 1; c <= TOTAL_CHAPTERS; c++) {
+                const isChapterLocked = c > unlockedChapter;
                 const btn = document.createElement('button');
-                btn.className = 'pill-btn' + (c === 1 ? ' active' : '');
-                btn.textContent = `Chapter ${c}`;
+                btn.className = 'pill-btn' + (c === 1 ? ' active' : '') + (isChapterLocked ? ' pill-locked' : '');
+                btn.textContent = isChapterLocked ? `🔒 Ch ${c}` : `Chapter ${c}`;
                 btn.id = `chap-btn-${c}`;
                 btn.setAttribute('aria-pressed', c === 1 ? 'true' : 'false');
                 btn.addEventListener('click', () => {
+                    if (isChapterLocked) {
+                        showToast('🔒 Pass the previous chapter\'s Master Quiz to unlock!');
+                        return;
+                    }
                     document.querySelectorAll('.pill-btn').forEach(b => {
                         b.classList.remove('active');
                         b.setAttribute('aria-pressed', 'false');
@@ -125,16 +126,16 @@
             }
         }
 
-        // ─── Show Levels for a Chapter ───────────────
+        // ─── Show Levels + Master Quiz Card for a Chapter ────────
         function showChapterLevels(chapter) {
             const container = document.getElementById('levels-container');
             const unlockedLevel = userData?.unlockedLevel ?? 1;
+            const unlockedChapter = userData?.unlockedChapter ?? 1;
 
-            // Compute which global level index these chapter levels map to
-            // Global level = (chapter - 1) * 6 + localLevel
             container.innerHTML = '<div class="levels-grid" id="levels-grid"></div>';
             const grid = document.getElementById('levels-grid');
 
+            // ── 6 Level cards ──────────────────────────
             for (let l = 1; l <= LEVELS_PER_CHAP; l++) {
                 const globalLevel = (chapter - 1) * LEVELS_PER_CHAP + l;
                 const wordStart = (globalLevel - 1) * WORDS_PER_LEVEL + 1;
@@ -146,18 +147,18 @@
                 card.className = `level-card${isLocked ? ' locked' : ''}${isCompleted ? ' completed' : ''}`;
                 card.setAttribute('role', 'button');
                 card.setAttribute('tabindex', isLocked ? '-1' : '0');
-                card.setAttribute('aria-label', `Level ${l}-${chapter}, words ${wordStart} to ${wordEnd}${isLocked ? ', locked' : ''}`);
+                card.setAttribute('aria-label',
+                    `Level ${l} of Chapter ${chapter}, words ${wordStart}–${wordEnd}${isLocked ? ', locked' : ''}`);
 
                 card.innerHTML = `
-                ${isLocked ? '<span class="lock-icon" aria-hidden="true">🔒</span>' : ''}
-                <div class="level-icon" aria-hidden="true">${isCompleted ? '⭐' : '📖'}</div>
-                <div class="level-label">LEVEL ${l}-${chapter}</div>
-                <div class="level-range">Words ${wordStart}−${wordEnd}</div>
-            `;
+                    ${isLocked ? '<span class="lock-icon" aria-hidden="true">🔒</span>' : ''}
+                    <div class="level-icon" aria-hidden="true">${isCompleted ? '⭐' : '📖'}</div>
+                    <div class="level-label">LEVEL ${l}-${chapter}</div>
+                    <div class="level-range">Words ${wordStart}−${wordEnd}</div>
+                `;
 
                 if (!isLocked) {
                     card.addEventListener('click', () => {
-                        // Navigate to study page
                         window.location.href = `study.html?chapter=${chapter}&level=${l}`;
                     });
                     card.addEventListener('keydown', (e) => {
@@ -172,9 +173,49 @@
                 grid.appendChild(card);
             }
 
+            // ── Master Quiz card ───────────────────────
+            // The master quiz for chapter N is unlocked once all 6 levels are done,
+            // i.e. unlockedLevel > chapter * 6  (the frontier has moved past level 6).
+            const allLevelsDone = unlockedLevel > chapter * LEVELS_PER_CHAP;
+            const masterAlreadyPassed = unlockedChapter > chapter; // chapter unlocked means master was passed
+            const masterLocked = !allLevelsDone;
+
+            const masterCard = document.createElement('div');
+            masterCard.className = `level-card master-card${masterLocked ? ' locked' : ''}${masterAlreadyPassed ? ' completed' : ''}`;
+            masterCard.setAttribute('role', 'button');
+            masterCard.setAttribute('tabindex', masterLocked ? '-1' : '0');
+            masterCard.setAttribute('aria-label',
+                `Master Quiz for Chapter ${chapter}${masterLocked ? ' – locked until all 6 levels are done' : ''}`);
+
+            masterCard.innerHTML = `
+                ${masterLocked ? '<span class="lock-icon" aria-hidden="true">🔒</span>' : ''}
+                <div class="level-icon master-icon" aria-hidden="true">${masterAlreadyPassed ? '🏅' : '🏆'}</div>
+                <div class="level-label master-label">MASTER QUIZ</div>
+                <div class="level-range">Chapter ${chapter} · 50 Questions</div>
+                ${masterLocked
+                    ? `<div class="master-hint">Finish all 6 levels first</div>`
+                    : masterAlreadyPassed
+                        ? `<div class="master-hint master-passed">✅ Passed — Chapter ${chapter + 1} unlocked!</div>`
+                        : `<div class="master-hint">48 / 50 required · 3 mistakes = out</div>`}
+            `;
+
+            if (!masterLocked) {
+                masterCard.addEventListener('click', () => {
+                    window.location.href = `quiz.html?type=master&chapter=${chapter}`;
+                });
+                masterCard.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') masterCard.click();
+                });
+            } else {
+                masterCard.addEventListener('click', () => {
+                    showToast('🔒 Complete all 6 levels of this chapter first!');
+                });
+            }
+
+            grid.appendChild(masterCard);
+
             // Animate cards in
-            const cards = grid.querySelectorAll('.level-card');
-            cards.forEach((card, i) => {
+            grid.querySelectorAll('.level-card').forEach((card, i) => {
                 card.style.animationDelay = `${i * 0.05}s`;
             });
         }
@@ -182,3 +223,4 @@
 
 </body>
 
+</html>
