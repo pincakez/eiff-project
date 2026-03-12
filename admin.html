@@ -1018,6 +1018,19 @@
                         </div>
                     </div>
 
+                    <div class="settings-card">
+                        <div class="settings-title">⏳ Penalty Duration</div>
+                        <div class="settings-sub">Lockout time (hours) after failing or starting a quiz.</div>
+
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Lockout Period (hours)</span>
+                                <span class="setting-val" id="lbl-penalty">12h</span>
+                            </div>
+                            <input type="range" id="rng-penalty" min="1" max="48" value="12">
+                        </div>
+                    </div>
+
                     <button class="btn-save" id="btn-save-settings">Save to Firestore</button>
                     <span class="save-toast" id="save-toast">✅ Saved!</span>
                 </div>
@@ -1086,6 +1099,24 @@
                 </div>
             </div>
 
+            <!-- Login history -->
+            <div class="section-title" style="margin-top:20px;">Login History (last 10)</div>
+            <div class="table-wrap" style="max-height: 180px; margin-bottom: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-logins">
+                        <tr class="loader-row">
+                            <td colspan="2"><span class="spinner-sm"></span>Loading…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
             <!-- Attempts history -->
             <div class="section-title" style="margin-top:8px;">Quiz History (last 30)</div>
             <div class="table-wrap attempts-table">
@@ -1119,13 +1150,13 @@
         } from './js/firebase-config.js';
 
         // ── Helpers ──────────────────────────────────────────────
-        const LOCKOUT_MS = 12 * 60 * 60 * 1000;
+        let CURRENT_PENALTY_MS = 12 * 60 * 60 * 1000;
 
         function isLocked(userData) {
             if (!userData.lastAttempt) return false;
             const ts = userData.lastAttempt.toDate ? userData.lastAttempt.toDate().getTime()
                 : userData.lastAttempt.seconds * 1000;
-            return Date.now() - ts < LOCKOUT_MS;
+            return Date.now() - ts < CURRENT_PENALTY_MS;
         }
 
         function timeAgo(ts) {
@@ -1207,7 +1238,7 @@
         let allUsersCache = [];
 
         async function init() {
-            loadSettings();
+            await loadSettings();
             await loadAllUsers();
             buildDashboard();
             buildStudentsTable(allUsersCache);
@@ -1459,6 +1490,32 @@
                 btn.disabled = false;
             };
 
+            // Load login history
+            const loginsBody = document.getElementById('modal-logins');
+            loginsBody.innerHTML = '';
+            const history = user.loginHistory || [];
+            if (history.length === 0) {
+                // Fallback for older accounts without the array
+                if (user.lastSeen) {
+                    const ts = user.lastSeen.toDate ? user.lastSeen.toDate().getTime() : user.lastSeen.seconds * 1000;
+                    history.push(ts);
+                }
+            }
+            if (history.length === 0) {
+                loginsBody.innerHTML = `<tr><td colspan="2" style="text-align:center;color:var(--text3);padding:10px">No logins recorded.</td></tr>`;
+            } else {
+                // Show last 10, newest first
+                const sortedLogins = [...history].sort((a,b) => b - a).slice(0, 10);
+                sortedLogins.forEach(ts => {
+                    const d = new Date(ts);
+                    const dateStr = d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+                    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${dateStr}</td><td>${timeStr}</td>`;
+                    loginsBody.appendChild(row);
+                });
+            }
+
             // Load attempts
             const tbody = document.getElementById('modal-attempts');
             tbody.innerHTML = `<tr class="loader-row"><td colspan="6"><span class="spinner-sm"></span>Loading…</td></tr>`;
@@ -1522,12 +1579,19 @@
                     const t = cfg.timeLimit ?? 8;
                     const ml = cfg.maxMistakesLevel ?? 2;
                     const mm = cfg.maxMistakesMaster ?? 3;
+                    const ph = cfg.penaltyHours ?? 12;
+                    
                     document.getElementById('rng-timer').value = t;
                     document.getElementById('lbl-timer').textContent = `${t}s`;
                     document.getElementById('rng-ml').value = ml;
                     document.getElementById('lbl-ml').textContent = ml;
                     document.getElementById('rng-mm').value = mm;
                     document.getElementById('lbl-mm').textContent = mm;
+                    document.getElementById('rng-penalty').value = ph;
+                    document.getElementById('lbl-penalty').textContent = `${ph}h`;
+
+                    // Update global penalty for calculations
+                    CURRENT_PENALTY_MS = ph * 60 * 60 * 1000;
                 }
             } catch (_) { }
         }
@@ -1541,6 +1605,9 @@
         document.getElementById('rng-mm').addEventListener('input', e => {
             document.getElementById('lbl-mm').textContent = e.target.value;
         });
+        document.getElementById('rng-penalty').addEventListener('input', e => {
+            document.getElementById('lbl-penalty').textContent = `${e.target.value}h`;
+        });
 
         document.getElementById('btn-save-settings').addEventListener('click', async () => {
             const btn = document.getElementById('btn-save-settings');
@@ -1548,11 +1615,14 @@
             btn.disabled = true;
             btn.textContent = 'Saving…';
             try {
+                const penaltyHours = parseInt(document.getElementById('rng-penalty').value);
                 await setGlobalConfig({
                     timeLimit: parseInt(document.getElementById('rng-timer').value),
                     maxMistakesLevel: parseInt(document.getElementById('rng-ml').value),
-                    maxMistakesMaster: parseInt(document.getElementById('rng-mm').value)
+                    maxMistakesMaster: parseInt(document.getElementById('rng-mm').value),
+                    penaltyHours: penaltyHours
                 });
+                CURRENT_PENALTY_MS = penaltyHours * 60 * 60 * 1000;
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 3000);
             } catch (err) {

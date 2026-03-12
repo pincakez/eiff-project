@@ -30,14 +30,18 @@ async function eiffSignUp(email, password, displayName) {
         unlockedLevel: 1,
         unlockedChapter: 1,
         createdAt: serverTimestamp(),
-        lastSeen: serverTimestamp()
+        lastSeen: serverTimestamp(),
+        loginHistory: [Date.now()]
     });
     return userCred.user;
 }
 
 async function eiffSignIn(email, password) {
     const userCred = await signInWithEmailAndPassword(auth, email, password);
-    await updateDoc(doc(db, "users", userCred.user.uid), { lastSeen: serverTimestamp() });
+    await updateDoc(doc(db, "users", userCred.user.uid), { 
+        lastSeen: serverTimestamp(),
+        loginHistory: arrayUnion(Date.now())
+    });
     return userCred.user;
 }
 
@@ -72,9 +76,15 @@ async function lockUser(uid) {
 async function checkLockout(uid) {
     const data = await getUserData(uid);
     if (!data || !data.lastAttempt) return { isLocked: false, timeLeftMs: 0 };
+    
+    // Get variable penalty time
+    const config = await getGlobalConfig();
+    const penaltyHours = config?.penaltyHours ?? 12;
+    const lockoutMs = penaltyHours * 60 * 60 * 1000;
+    
     const elapsed = Date.now() - data.lastAttempt.toDate().getTime();
-    const timeLeft = 12 * 60 * 60 * 1000 - elapsed;
-    return { isLocked: timeLeft > 0, timeLeftMs: Math.max(0, timeLeft) };
+    const timeLeft = lockoutMs - elapsed;
+    return { isLocked: timeLeft > 0, timeLeftMs: Math.max(0, timeLeft), penaltyHours };
 }
 
 // ── Level / Chapter Progress ──────────────────────────────────────
