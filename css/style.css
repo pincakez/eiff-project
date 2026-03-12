@@ -1808,3 +1808,102 @@ body.master-quiz-active .quiz-score-badge {
 .quiz-result-card--master .result-score-big {
   color: #fbbf24;
 }
+
+/* =============================================
+   MESSAGING SYSTEM
+   ============================================= */
+.msg-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s;
+  padding: 0 10px;
+}
+
+.msg-btn:hover {
+  transform: scale(1.1);
+}
+
+@keyframes shakeBell {
+  0% { transform: rotate(0deg); }
+  15% { transform: rotate(-20deg); }
+  30% { transform: rotate(20deg); }
+  45% { transform: rotate(-20deg); }
+  60% { transform: rotate(20deg); }
+  75% { transform: rotate(-20deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.shake-bell {
+  animation: shakeBell 2.5s ease infinite;
+  display: inline-block;
+}
+
+.msg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.msg-modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.msg-modal {
+  background: white;
+  border-radius: 20px;
+  max-width: 400px;
+  width: 90%;
+  padding: 30px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  transform: translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.msg-modal-overlay.open .msg-modal {
+  transform: translateY(0);
+}
+
+.msg-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.msg-text {
+  font-size: 1.1rem;
+  color: var(--text-dark, #333);
+  line-height: 1.5;
+  margin-bottom: 25px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.btn-msg-okay {
+  background: var(--g-blue, #4285f4);
+  color: white;
+  border: none;
+  padding: 12px 36px;
+  border-radius: 50px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-msg-okay:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(66, 133, 244, 0.4);
+}

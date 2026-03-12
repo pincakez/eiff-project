@@ -3,7 +3,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
     getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
-    collection, getDocs, addDoc, query, orderBy, limit
+    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion
 }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
@@ -137,6 +137,34 @@ async function setGlobalConfig(config) {
     await setDoc(doc(db, "config", "quiz"), config, { merge: true });
 }
 
+// ── Messaging ─────────────────────────────────────────────────────
+
+async function sendUserMessage(uid, text) {
+    const newMessage = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        text: text,
+        timestamp: new Date().getTime(),
+        read: false
+    };
+    await updateDoc(doc(db, "users", uid), {
+        messages: arrayUnion(newMessage)
+    });
+}
+
+async function markMessageRead(uid, msgId) {
+    const data = await getUserData(uid);
+    if (!data || !data.messages) return;
+    
+    // Find message and update read status
+    const updatedMessages = data.messages.map(m => 
+        m.id === msgId ? { ...m, read: true } : m
+    );
+    
+    await updateDoc(doc(db, "users", uid), {
+        messages: updatedMessages
+    });
+}
+
 // ── Exports ───────────────────────────────────────────────────────
 
 export {
@@ -146,5 +174,6 @@ export {
     unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
     logQuizAttempt, lockUser, checkLockout, clearLockout,
     logQuizResult, getUserAttempts,
-    getGlobalConfig, setGlobalConfig
+    getGlobalConfig, setGlobalConfig,
+    sendUserMessage, markMessageRead
 };
