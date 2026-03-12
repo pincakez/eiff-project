@@ -373,6 +373,37 @@ async function showResults() {
         nextUrl = `quiz.html?type=master&chapter=${chapter}`;
     }
 
+    // Hide the bottom "Next" button immediately
+    const nav = document.querySelector('.quiz-nav');
+    if (nav) nav.style.display = 'none';
+
+    // Show Fireworks!
+    if (passed && typeof confetti === 'function') {
+        const duration = 3000;
+        const end = Date.now() + duration;
+
+        (function frame() {
+            confetti({
+                particleCount: 5,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 },
+                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+            });
+            confetti({
+                particleCount: 5,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 },
+                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+            });
+
+            if (Date.now() < end) {
+                requestAnimationFrame(frame);
+            }
+        }());
+    }
+
     const area = document.getElementById('quiz-area');
     const resultClass = type === 'master' ? 'quiz-result-card quiz-result-card--master' : 'quiz-result-card';
 
@@ -382,16 +413,20 @@ async function showResults() {
             <div class="result-score-big">${Math.round(pct * 100)}%</div>
             <p>You got ${score} out of ${total} correct.</p>
             ${passed && type === 'level' && level === 6
-            ? `<p class="master-unlock-msg">🏆 All 6 levels complete! Time for the Master Quiz!</p>`
+            ? `<p class="master-unlock-msg">🏆 All 6 levels complete! Master Quiz unlocked.</p>`
             : ''}
             ${chapterUnlocked
             ? `<p class="chapter-unlock-msg">🔓 Chapter ${chapter + 1} is now unlocked!</p>`
             : ''}
-            <button class="btn-result" onclick="window.location.href='${nextUrl}'">
-                ${passed && type === 'level' && level === 6 ? 'Start Master Quiz →' : 'Back to Dashboard'}
+            <button class="btn-primary" id="btn-quiz-done" style="margin-top: 15px; padding: 14px 40px; font-size: 1.1rem; border-radius: 50px;">
+                Go to Dashboard
             </button>
         </div>
     `;
+
+    document.getElementById('btn-quiz-done').addEventListener('click', () => {
+        window.location.href = 'dashboard.html';
+    });
 }
 
 // ─── Helpers ───────────────────────────────
