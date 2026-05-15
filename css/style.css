@@ -152,6 +152,60 @@ img {
   gap: 10px;
 }
 
+/* ── Leaderboard glow button ─────────────────────────────── */
+.btn-leaderboard {
+  position: relative;
+  padding: 9px 22px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  letter-spacing: 0.3px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  background: linear-gradient(135deg, #065f46, #1e3a8a);
+  z-index: 0;
+  transition: transform 0.2s ease;
+}
+
+/* Animated AI-color glowing border ring */
+.btn-leaderboard::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 52px;
+  background: linear-gradient(90deg,
+    #10b981, #3b82f6, #8b5cf6, #f59e0b, #ef4444, #10b981);
+  background-size: 300%;
+  z-index: -1;
+  animation: lbGlow 2.5s linear infinite;
+}
+
+/* Cover the center so only the border ring shows */
+.btn-leaderboard::after {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #064e3b, #1e3a8a);
+  z-index: -1;
+}
+
+@keyframes lbGlow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+.btn-leaderboard:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+
+
 .btn-primary,
 .btn-secondary {
   padding: 9px 22px;

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard — EiFF Hall of Champions</title>
+    <meta name="description" content="Top students in the EiFF English learning challenge.">
+    <link rel="icon" href="assets/favicon.ico.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cairo:wght@400;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --gold:   #f59e0b;
+            --gold2:  #fbbf24;
+            --silver: #94a3b8;
+            --bronze: #b45309;
+            --navy:   #0a0f1e;
+            --navy2:  #111827;
+            --navy3:  #1f2937;
+            --text:   #f1f5f9;
+            --text2:  #94a3b8;
+            --green:  #10b981;
+            --blue:   #3b82f6;
+            --purple: #8b5cf6;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--navy);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated starfield background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(139,92,246,.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(16,185,129,.1) 0%, transparent 60%),
+                radial-gradient(ellipse at 60% 80%, rgba(59,130,246,.1) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Topbar ─────────────────────────────── */
+        .lb-topbar {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 28px;
+            background: rgba(10,15,30,.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+        .lb-back {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 20px; border-radius: 50px;
+            background: rgba(255,255,255,.07);
+            border: 1.5px solid rgba(255,255,255,.12);
+            color: var(--text2); font-weight: 600; font-size: .875rem;
+            cursor: pointer; transition: .2s ease; text-decoration: none;
+            font-family: 'Inter', sans-serif;
+        }
+        .lb-back:hover { background: rgba(255,255,255,.12); color: var(--text); transform: translateX(-3px); }
+        .lb-topbar-title {
+            font-size: 1rem; font-weight: 800;
+            background: linear-gradient(135deg, #fff, var(--gold));
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .lb-badge {
+            background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3);
+            border-radius: 50px; padding: 5px 14px;
+            color: var(--gold); font-size: .75rem; font-weight: 700;
+        }
+
+        /* ── Main layout ─────────────────────────── */
+        .lb-main { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; padding: 40px 20px 80px; }
+
+        /* ── Page title ─────────────────────────── */
+        .lb-page-title {
+            text-align: center; margin-bottom: 40px;
+        }
+        .lb-page-title h1 {
+            font-size: clamp(1.8rem, 5vw, 2.8rem); font-weight: 900;
+            background: linear-gradient(135deg, var(--gold), var(--purple), var(--green));
+            background-size: 200%;
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: titleShimmer 4s linear infinite;
+        }
+        @keyframes titleShimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        .lb-page-title p { color: var(--text2); font-size: .95rem; margin-top: 6px; }
+
+        /* ── Hero Champion Box ──────────────────── */
+        .lb-hero {
+            position: relative; border-radius: 24px; padding: 40px 36px;
+            text-align: center; margin-bottom: 40px; overflow: hidden;
+            background: linear-gradient(135deg, #1a1000, #0d1a00, #1a0d00);
+            border: 2px solid transparent;
+            animation: heroBorderGlow 3s linear infinite;
+        }
+        @keyframes heroBorderGlow {
+            0%   { box-shadow: 0 0 20px 4px rgba(245,158,11,.5),  0 0 60px 8px rgba(245,158,11,.2); }
+            33%  { box-shadow: 0 0 20px 4px rgba(251,191,36,.6),  0 0 60px 8px rgba(251,191,36,.25); }
+            66%  { box-shadow: 0 0 20px 4px rgba(217,119,6,.5),  0 0 60px 8px rgba(217,119,6,.2); }
+            100% { box-shadow: 0 0 20px 4px rgba(245,158,11,.5),  0 0 60px 8px rgba(245,158,11,.2); }
+        }
+        /* Shimmer sweep across hero */
+        .lb-hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(105deg, transparent 40%, rgba(245,158,11,.08) 50%, transparent 60%);
+            background-size: 200%; animation: heroShimmer 2.5s linear infinite;
+        }
+        @keyframes heroShimmer { 0% { background-position: -100% 0; } 100% { background-position: 300% 0; } }
+
+        .lb-hero-crown { font-size: 3.5rem; animation: crownFloat 3s ease-in-out infinite; display: block; margin-bottom: 8px; }
+        @keyframes crownFloat {
+            0%, 100% { transform: translateY(0) rotate(-5deg); }
+            50%       { transform: translateY(-12px) rotate(5deg); }
+        }
+        .lb-hero-name {
+            font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 900;
+            color: var(--gold); text-shadow: 0 0 30px rgba(245,158,11,.7);
+            margin-bottom: 6px; animation: nameGlow 2s ease-in-out infinite alternate;
+        }
+        @keyframes nameGlow {
+            from { text-shadow: 0 0 20px rgba(245,158,11,.5); }
+            to   { text-shadow: 0 0 40px rgba(245,158,11,.9), 0 0 60px rgba(251,191,36,.4); }
+        }
+        .lb-hero-tagline {
+            font-size: 1.05rem; font-weight: 600; color: #fde68a;
+            margin-bottom: 16px; font-style: italic;
+        }
+        .lb-hero-words {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3);
+            border-radius: 50px; padding: 8px 20px;
+            font-size: .95rem; font-weight: 700; color: var(--gold2);
+        }
+        .lb-hero-stars { font-size: 1.5rem; margin-top: 16px; letter-spacing: 4px; }
+
+        /* ── Leaderboard list ───────────────────── */
+        .lb-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 40px; }
+
+        .lb-row {
+            border-radius: 18px; padding: 20px 24px;
+            display: flex; align-items: center; gap: 18px;
+            position: relative; overflow: hidden;
+            transition: transform .2s ease;
+            cursor: default;
+        }
+        .lb-row:hover { transform: translateX(6px); }
+
+        /* Tier styles */
+        .lb-row.tier-1 {
+            background: linear-gradient(135deg, rgba(30,20,0,.9), rgba(15,10,0,.95));
+            border: 1.5px solid rgba(245,158,11,.5);
+            box-shadow: 0 4px 24px rgba(245,158,11,.2);
+            animation: goldPulse 3s ease-in-out infinite;
+        }
+        @keyframes goldPulse {
+            0%,100% { box-shadow: 0 4px 24px rgba(245,158,11,.2); }
+            50%      { box-shadow: 0 4px 32px rgba(245,158,11,.4); }
+        }
+        .lb-row.tier-2 {
+            background: linear-gradient(135deg, rgba(15,20,30,.9), rgba(10,15,25,.95));
+            border: 1.5px solid rgba(148,163,184,.4);
+            box-shadow: 0 4px 20px rgba(148,163,184,.12);
+            animation: silverPulse 4s ease-in-out infinite;
+        }
+        @keyframes silverPulse {
+            0%,100% { box-shadow: 0 4px 20px rgba(148,163,184,.1); }
+            50%      { box-shadow: 0 4px 28px rgba(148,163,184,.25); }
+        }
+        .lb-row.tier-3 {
+            background: linear-gradient(135deg, rgba(20,10,0,.9), rgba(12,8,0,.95));
+            border: 1.5px solid rgba(180,83,9,.45);
+            box-shadow: 0 4px 18px rgba(180,83,9,.15);
+        }
+        .lb-row.tier-4, .lb-row.tier-5 {
+            background: rgba(255,255,255,.04);
+            border: 1.5px solid rgba(255,255,255,.08);
+        }
+
+        .lb-rank {
+            font-size: 1.6rem; font-weight: 900; min-width: 40px; text-align: center;
+        }
+        .lb-row.tier-1 .lb-rank { color: var(--gold); }
+        .lb-row.tier-2 .lb-rank { color: var(--silver); }
+        .lb-row.tier-3 .lb-rank { color: #d97706; }
+        .lb-row.tier-4 .lb-rank, .lb-row.tier-5 .lb-rank { color: var(--text2); }
+
+        .lb-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 1.2rem; flex-shrink: 0;
+        }
+        .tier-1 .lb-avatar { background: linear-gradient(135deg, var(--gold), #d97706); color: #000; }
+        .tier-2 .lb-avatar { background: linear-gradient(135deg, var(--silver), #64748b); color: #000; }
+        .tier-3 .lb-avatar { background: linear-gradient(135deg, #d97706, #92400e); color: #fff; }
+        .tier-4 .lb-avatar, .tier-5 .lb-avatar { background: rgba(255,255,255,.1); color: var(--text2); }
+
+        .lb-info { flex: 1; min-width: 0; }
+        .lb-name { font-weight: 800; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lb-meta { font-size: .78rem; color: var(--text2); margin-top: 3px; }
+        .lb-words-badge {
+            font-size: .75rem; font-weight: 700;
+            background: rgba(255,255,255,.07); border-radius: 50px;
+            padding: 3px 10px; margin-left: 6px;
+        }
+
+        .lb-right { text-align: right; flex-shrink: 0; }
+        .lb-stars { font-size: 1rem; letter-spacing: 2px; margin-bottom: 4px; }
+        .lb-tier-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 50px;
+            font-size: .65rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+        }
+        .tier-1 .lb-tier-badge { background: rgba(245,158,11,.2); color: var(--gold); border: 1px solid rgba(245,158,11,.4); }
+        .tier-2 .lb-tier-badge { background: rgba(148,163,184,.15); color: var(--silver); border: 1px solid rgba(148,163,184,.3); }
+        .tier-3 .lb-tier-badge { background: rgba(180,83,9,.2); color: #f59e0b; border: 1px solid rgba(180,83,9,.4); }
+        .tier-4 .lb-tier-badge, .tier-5 .lb-tier-badge { background: rgba(255,255,255,.06); color: var(--text2); border: 1px solid rgba(255,255,255,.1); }
+
+        /* Current user highlight in list */
+        .lb-row.is-me::after {
+            content: 'YOU';
+            position: absolute; top: 10px; right: 14px;
+            font-size: .6rem; font-weight: 800; letter-spacing: 1px;
+            background: var(--blue); color: #fff; padding: 2px 7px; border-radius: 50px;
+        }
+
+        /* ── Your Standing card ─────────────────── */
+        .lb-you-card {
+            border-radius: 20px; padding: 28px 28px;
+            background: linear-gradient(135deg, rgba(59,130,246,.1), rgba(139,92,246,.08));
+            border: 1.5px solid rgba(59,130,246,.3);
+            text-align: center;
+        }
+        .lb-you-card h3 { font-size: 1rem; font-weight: 700; color: var(--blue); margin-bottom: 14px; }
+        .lb-you-brain {
+            font-size: clamp(1.1rem, 3vw, 1.5rem); font-weight: 800;
+            color: var(--text); margin-bottom: 8px; line-height: 1.5;
+        }
+        .lb-you-brain span { color: var(--green); }
+        .lb-you-rank { color: var(--text2); font-size: .9rem; margin-bottom: 10px; }
+        .lb-you-msg {
+            font-size: .875rem; color: var(--purple);
+            font-weight: 600; font-style: italic;
+        }
+
+        /* ── Loading ────────────────────────────── */
+        #lb-loading {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; min-height: 60vh; gap: 16px;
+        }
+        .lb-spinner {
+            width: 48px; height: 48px;
+            border: 3px solid rgba(245,158,11,.2);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #lb-content { display: none; }
+
+        /* ── Separator ──────────────────────────── */
+        .lb-sep { text-align: center; color: rgba(255,255,255,.15); margin: 8px 0; font-size: .75rem; letter-spacing: 2px; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        .lb-row { animation: fadeUp .4s ease both; }
+        .lb-row:nth-child(1) { animation-delay: .05s; }
+        .lb-row:nth-child(2) { animation-delay: .1s; }
+        .lb-row:nth-child(3) { animation-delay: .15s; }
+        .lb-row:nth-child(4) { animation-delay: .2s; }
+        .lb-row:nth-child(5) { animation-delay: .25s; }
+    </style>
+</head>
+<body>
+
+    <!-- ── Topbar ────────────────────────────────── -->
+    <header class="lb-topbar" role="banner">
+        <a href="dashboard.html" class="lb-back" aria-label="Back to Dashboard">← Dashboard</a>
+        <div class="lb-topbar-title">🏆 Hall of Champions</div>
+        <div class="lb-badge">LEADERBOARD</div>
+    </header>
+
+    <!-- ── Loading ───────────────────────────────── -->
+    <div id="lb-loading">
+        <div class="lb-spinner"></div>
+        <p style="color:var(--text2); font-size:.9rem;">Loading champions…</p>
+    </div>
+
+    <!-- ── Main content (shown after load) ──────── -->
+    <div id="lb-content">
+        <main class="lb-main">
+
+            <!-- Page title -->
+            <div class="lb-page-title">
+                <h1>🌍 World Cup of English</h1>
+                <p>Top students ranked by words mastered. Who rules the leaderboard?</p>
+            </div>
+
+            <!-- Champion hero box -->
+            <div class="lb-hero" id="lb-hero" aria-label="Champion spotlight">
+                <span class="lb-hero-crown">👑</span>
+                <div class="lb-hero-name" id="hero-name">—</div>
+                <div class="lb-hero-tagline" id="hero-tagline">Loading…</div>
+                <div class="lb-hero-words" id="hero-words">🧠 — words mastered</div>
+                <div class="lb-hero-stars">⭐⭐⭐⭐⭐</div>
+            </div>
+
+            <!-- Top 5 list -->
+            <div class="lb-list" id="lb-list" aria-label="Leaderboard top 5"></div>
+
+            <!-- Your standing -->
+            <div class="lb-you-card" id="lb-you-card" aria-label="Your standing">
+                <h3>🧠 Your Standing</h3>
+                <div class="lb-you-brain" id="you-brain">—</div>
+                <div class="lb-you-rank" id="you-rank">—</div>
+                <div class="lb-you-msg" id="you-msg">—</div>
+            </div>
+
+        </main>
+    </div>
+
+    <script type="module">
+        import { auth, onAuthStateChanged, getAllUsers } from './js/firebase-config.js';
+
+        // ── Helpers ──────────────────────────────
+        const wordsFromLevel = (lv) => Math.max(0, (lv - 1) * 50);
+
+        const tierData = [
+            { emoji: '👑', badge: 'WORLD CHAMPION', stars: '⭐⭐⭐⭐⭐' },
+            { emoji: '🥈', badge: 'ELITE',          stars: '⭐⭐⭐⭐' },
+            { emoji: '🥉', badge: 'RISING STAR',    stars: '⭐⭐⭐' },
+            { emoji: '⚡', badge: 'CONTENDER',       stars: '⭐⭐' },
+            { emoji: '🌱', badge: 'LEARNER',         stars: '⭐' },
+        ];
+
+        function getChampionTagline(words, name) {
+            if (words >= 2500) return `${name} is a walking English dictionary. A true EiFF GOAT! 🐐`;
+            if (words >= 1500) return `${name} bends words to their will. Beyond legendary! ⚡`;
+            if (words >= 1000) return `${name} — Master of words. Legend of EiFF! 🔥`;
+            if (words >= 500)  return `${name} has conquered half a thousand words! Unstoppable! 🚀`;
+            if (words >= 50)   return `${name} is rising fast! The throne awaits! 🌟`;
+            return `${name} — Every champion starts somewhere. This is the beginning! 🌱`;
+        }
+
+        function getMotivation(rank, total, words, name) {
+            if (rank === 1) return `${name} stands alone at the summit. Unmatched. Untouchable! 👑`;
+            if (rank === 2) return `${name} is ONE step away from the throne. The hunt is on! ⚡`;
+            if (rank === 3) return `${name} is on the podium! Keep pushing — the silver is in sight! 🔥`;
+            if (rank <= 5)  return `${name} is in the TOP 5! You are already elite! 💪`;
+            const gap = rank - 5;
+            return `You are rank #${rank} out of ${total}. Only ${gap} student${gap > 1 ? 's' : ''} ahead of the top 5. You can do this! 🚀`;
+        }
+
+        function fireConfetti() {
+            const end = Date.now() + 3000;
+            (function frame() {
+                confetti({ particleCount: 4, angle: 60,  spread: 55, origin: { x: 0 }, colors: ['#f59e0b','#fbbf24','#10b981','#3b82f6','#8b5cf6'] });
+                confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#f59e0b','#fbbf24','#10b981','#3b82f6','#8b5cf6'] });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        // ── Auth + Load ──────────────────────────
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) { window.location.href = 'index.html'; return; }
+
+            const users = await getAllUsers();
+            // Sort: highest unlockedLevel first, unlockedChapter as tiebreaker
+            users.sort((a, b) => {
+                const la = a.unlockedLevel ?? 1, lb = b.unlockedLevel ?? 1;
+                if (lb !== la) return lb - la;
+                return (b.unlockedChapter ?? 1) - (a.unlockedChapter ?? 1);
+            });
+
+            const top5 = users.slice(0, 5);
+            const myRank = users.findIndex(u => u.uid === user.uid) + 1; // 1-indexed
+            const me = users.find(u => u.uid === user.uid);
+            const myWords = me ? wordsFromLevel(me.unlockedLevel ?? 1) : 0;
+            const myName = me?.displayName || user.email?.split('@')[0] || 'You';
+
+            // ── Champion Hero box ────────────────
+            if (top5.length > 0) {
+                const champ = top5[0];
+                const champWords = wordsFromLevel(champ.unlockedLevel ?? 1);
+                const champName  = champ.displayName || champ.email?.split('@')[0] || '?';
+                document.getElementById('hero-name').textContent    = champName;
+                document.getElementById('hero-tagline').textContent = getChampionTagline(champWords, champName);
+                document.getElementById('hero-words').textContent   = `🧠 ${champWords.toLocaleString()} English words mastered`;
+                if (typeof confetti === 'function') fireConfetti();
+            } else {
+                document.getElementById('lb-hero').style.display = 'none';
+            }
+
+            // ── Top 5 list ───────────────────────
+            const list = document.getElementById('lb-list');
+            list.innerHTML = '';
+            top5.forEach((u, i) => {
+                const words   = wordsFromLevel(u.unlockedLevel ?? 1);
+                const name    = u.displayName || u.email?.split('@')[0] || '?';
+                const tier    = tierData[i];
+                const tierNum = i + 1;
+                const isMe    = u.uid === user.uid;
+                const lvStr   = `Ch.${u.unlockedChapter ?? 1} · Level ${u.unlockedLevel ?? 1}`;
+
+                const row = document.createElement('div');
+                row.className = `lb-row tier-${tierNum}${isMe ? ' is-me' : ''}`;
+                row.innerHTML = `
+                    <div class="lb-rank">${tier.emoji}</div>
+                    <div class="lb-avatar">${name[0].toUpperCase()}</div>
+                    <div class="lb-info">
+                        <div class="lb-name">${name}</div>
+                        <div class="lb-meta">${lvStr} <span class="lb-words-badge">🧠 ${words.toLocaleString()} words</span></div>
+                    </div>
+                    <div class="lb-right">
+                        <div class="lb-stars">${tier.stars}</div>
+                        <div class="lb-tier-badge">${tier.badge}</div>
+                    </div>
+                `;
+                list.appendChild(row);
+
+                // Separator before rank 4
+                if (i === 2 && top5.length > 3) {
+                    const sep = document.createElement('div');
+                    sep.className = 'lb-sep';
+                    sep.textContent = '· · · · · · · · · ·';
+                    list.appendChild(sep);
+                }
+            });
+
+            if (top5.length === 0) {
+                list.innerHTML = `<p style="text-align:center;color:var(--text2);padding:40px">No students yet. Be the first!</p>`;
+            }
+
+            // ── Your Standing ────────────────────
+            const youBrain  = document.getElementById('you-brain');
+            const youRank   = document.getElementById('you-rank');
+            const youMsg    = document.getElementById('you-msg');
+
+            youBrain.innerHTML = `<span>${myName}</span> has <span>${myWords.toLocaleString()}</span> English words in their magical brain! 🧠`;
+            youRank.textContent = myRank > 0
+                ? `Rank #${myRank} out of ${users.length} student${users.length !== 1 ? 's' : ''}`
+                : 'No rank yet';
+            youMsg.textContent = getMotivation(myRank, users.length, myWords, myName);
+
+            // ── Show content ─────────────────────
+            document.getElementById('lb-loading').style.display = 'none';
+            document.getElementById('lb-content').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
