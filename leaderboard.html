@@ -168,9 +168,9 @@
             50%      { box-shadow: 0 4px 32px rgba(245,158,11,.4); }
         }
         .lb-row.tier-2 {
-            background: linear-gradient(135deg, rgba(15,20,30,.9), rgba(10,15,25,.95));
-            border: 1.5px solid rgba(148,163,184,.4);
-            box-shadow: 0 4px 20px rgba(148,163,184,.12);
+            background: linear-gradient(135deg, rgba(180,190,210,.15), rgba(140,155,180,.08));
+            border: 1.5px solid rgba(203,213,225,.65);
+            box-shadow: 0 4px 24px rgba(148,163,184,.3);
             animation: silverPulse 4s ease-in-out infinite;
         }
         @keyframes silverPulse {
@@ -201,12 +201,13 @@
             font-weight: 900; font-size: 1.2rem; flex-shrink: 0;
         }
         .tier-1 .lb-avatar { background: linear-gradient(135deg, var(--gold), #d97706); color: #000; }
-        .tier-2 .lb-avatar { background: linear-gradient(135deg, var(--silver), #64748b); color: #000; }
+        .tier-2 .lb-avatar { background: linear-gradient(135deg, #e2e8f0, #94a3b8); color: #0f172a; }
         .tier-3 .lb-avatar { background: linear-gradient(135deg, #d97706, #92400e); color: #fff; }
         .tier-4 .lb-avatar, .tier-5 .lb-avatar { background: rgba(255,255,255,.1); color: var(--text2); }
 
         .lb-info { flex: 1; min-width: 0; }
         .lb-name { font-weight: 800; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tier-2 .lb-name { color: #e2e8f0; }
         .lb-meta { font-size: .78rem; color: var(--text2); margin-top: 3px; }
         .lb-words-badge {
             font-size: .75rem; font-weight: 700;
@@ -315,14 +316,6 @@
 
             <!-- Top 5 list -->
             <div class="lb-list" id="lb-list" aria-label="Leaderboard top 5"></div>
-
-            <!-- Your standing -->
-            <div class="lb-you-card" id="lb-you-card" aria-label="Your standing">
-                <h3>🧠 Your Standing</h3>
-                <div class="lb-you-brain" id="you-brain">—</div>
-                <div class="lb-you-rank" id="you-rank">—</div>
-                <div class="lb-you-msg" id="you-msg">—</div>
-            </div>
 
         </main>
     </div>
@@ -438,17 +431,6 @@
             if (top5.length === 0) {
                 list.innerHTML = `<p style="text-align:center;color:var(--text2);padding:40px">No students yet. Be the first!</p>`;
             }
-
-            // ── Your Standing ────────────────────
-            const youBrain  = document.getElementById('you-brain');
-            const youRank   = document.getElementById('you-rank');
-            const youMsg    = document.getElementById('you-msg');
-
-            youBrain.innerHTML = `<span>${myName}</span> has <span>${myWords.toLocaleString()}</span> English words in their magical brain! 🧠`;
-            youRank.textContent = myRank > 0
-                ? `Rank #${myRank} out of ${users.length} student${users.length !== 1 ? 's' : ''}`
-                : 'No rank yet';
-            youMsg.textContent = getMotivation(myRank, users.length, myWords, myName);
 
             // ── Show content ─────────────────────
             document.getElementById('lb-loading').style.display = 'none';
