@@ -282,13 +282,16 @@ function handleAnswer(selectedBtn, correctEn, timedOut = false) {
 
 // ─── GET OUT LOOSER Modal ───────────────────
 function showLooserModal() {
+    const limit = type === 'master' ? MAX_MISTAKES_MASTER : MAX_MISTAKES_LEVEL;
+    const mistakeText = limit === 1 ? 'غلطة واحدة' : limit === 2 ? 'غلطتين' : `${limit} غلطات`;
+    const quizTypeName = type === 'master' ? 'ماستر كويز' : 'الاختبار';
     const modal = document.createElement('div');
     modal.className = 'modal-overlay active';
     modal.innerHTML = `
         <div class="modal-box arabic-modal looser-modal">
             <div class="looser-emoji">💀</div>
             <h2>GET OUT LOOSER</h2>
-            <p>لقيت غلطتين... يلا بره! ارجع ذاكر وارجعلنا بعد 12 ساعة يا باشة 🚪</p>
+            <p>لقيت ${mistakeText} في ${quizTypeName}... يلا بره! ارجع ذاكر وارجعلنا بعد فترة يا باشة 🚪</p>
             <button class="btn-looser" id="btn-looser-confirm">YES I AM</button>
         </div>
     `;
@@ -367,10 +370,22 @@ async function showResults() {
         } catch (_) { /* non-critical */ }
     }
 
-    // Determine where the button goes
-    let nextUrl = 'dashboard.html';
+    // Determine where the button goes — smart context-aware navigation
+    let btnText = `← Back to Chapter ${chapter}`;
+    let btnUrl  = `dashboard.html?chapter=${chapter}`;
+
     if (passed && type === 'level' && level === 6) {
-        nextUrl = `quiz.html?type=master&chapter=${chapter}`;
+        // Finished last level — go take the Master Quiz
+        btnText = '🏆 Take Master Quiz';
+        btnUrl  = `quiz.html?type=master&chapter=${chapter}`;
+    } else if (passed && type === 'master' && chapterUnlocked) {
+        // Master quiz passed and a new chapter was unlocked
+        const nextCh = chapter + 1;
+        btnText = `Go to Chapter ${nextCh} →`;
+        btnUrl  = `dashboard.html?chapter=${nextCh}`;
+    } else if (type === 'grand') {
+        btnText = '🏠 Back to Dashboard';
+        btnUrl  = 'dashboard.html';
     }
 
     // Hide the bottom "Next" button immediately
@@ -419,13 +434,13 @@ async function showResults() {
             ? `<p class="chapter-unlock-msg">🔓 Chapter ${chapter + 1} is now unlocked!</p>`
             : ''}
             <button class="btn-primary" id="btn-quiz-done" style="margin-top: 15px; padding: 14px 40px; font-size: 1.1rem; border-radius: 50px;">
-                Go to Dashboard
+                ${btnText}
             </button>
         </div>
     `;
 
     document.getElementById('btn-quiz-done').addEventListener('click', () => {
-        window.location.href = 'dashboard.html';
+        window.location.href = btnUrl;
     });
 }
 

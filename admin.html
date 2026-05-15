@@ -699,6 +699,46 @@
             padding: 10px 12px;
         }
 
+        /* ── Edit Profile Inputs ────────────────────────────── */
+        .edit-profile-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .edit-profile-row input {
+            flex: 1;
+            background: var(--navy3);
+            border: 1.5px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 8px 12px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            transition: var(--trans);
+        }
+
+        .edit-profile-row input:focus {
+            border-color: var(--amber);
+        }
+
+        .edit-profile-row input::placeholder {
+            color: var(--text3);
+        }
+
+        .edit-status {
+            font-size: 0.72rem;
+            font-weight: 700;
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+        }
+
+        .edit-status.ok { color: var(--green); }
+        .edit-status.err { color: var(--red); }
+
         /* ── Settings Page ──────────────────────────────── */
         .settings-card {
             background: var(--navy2);
@@ -1069,6 +1109,7 @@
                 <div class="action-btns">
                     <button class="btn-sm btn-sm-green" id="modal-clear">✅ Remove Lockout</button>
                     <button class="btn-sm btn-sm-red" id="modal-lock">🔒 Force Lockout (12h)</button>
+                    <button class="btn-sm btn-sm-red" id="modal-delete-student" style="margin-left:auto;">🗑️ Delete Student</button>
                 </div>
             </div>
 
@@ -1087,6 +1128,25 @@
                     <input type="range" id="ctrl-chapter" min="1" max="10" value="1">
                     <div class="control-val" id="lbl-ctrl-chapter">1</div>
                     <button class="btn-sm btn-sm-amber" id="modal-set-chapter">Apply</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">✏️ Edit Profile</div>
+                <div class="edit-profile-row">
+                    <input type="text" id="ctrl-edit-name" placeholder="New display name…">
+                    <button class="btn-sm btn-sm-amber" id="modal-save-name">Save Name</button>
+                    <span class="edit-status" id="status-name"></span>
+                </div>
+                <div class="edit-profile-row">
+                    <input type="email" id="ctrl-edit-email" placeholder="New email address…">
+                    <button class="btn-sm btn-sm-amber" id="modal-save-email">Save Email</button>
+                    <span class="edit-status" id="status-email"></span>
+                </div>
+                <div class="edit-profile-row">
+                    <span style="flex:1;font-size:0.8rem;color:var(--text2);">Sends a Firebase password reset link to the student's registered email.</span>
+                    <button class="btn-sm btn-sm-blue" id="modal-reset-pass">📧 Send Reset Email</button>
+                    <span class="edit-status" id="status-pass"></span>
                 </div>
             </div>
 
@@ -1141,11 +1201,27 @@
         </div>
     </div>
 
+    <!-- ── Delete Confirmation Modal ──────────────────────────── -->
+    <div class="modal-bg" id="delete-modal">
+        <div class="modal" style="max-width:420px; text-align:center; padding:36px 32px;">
+            <div style="font-size:3rem; margin-bottom:12px;">🗑️</div>
+            <div class="modal-title" style="margin-bottom:10px;">Delete Student?</div>
+            <p style="color:var(--text2); font-size:0.88rem; margin-bottom:6px;">You are about to permanently delete:</p>
+            <p id="delete-confirm-name" style="font-weight:800; font-size:1rem; color:var(--red); margin-bottom:20px;"></p>
+            <p style="color:var(--text3); font-size:0.8rem; margin-bottom:24px;">This will remove all their data and quiz history. <strong style="color:var(--red);">This cannot be undone.</strong></p>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn-sm btn-sm-red" id="btn-confirm-delete" style="padding:10px 22px; font-size:0.88rem;">Yes, Delete</button>
+                <button class="btn-sm btn-sm-blue" id="btn-cancel-delete" style="padding:10px 22px; font-size:0.88rem;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Script ─────────────────────────────────────────────── -->
     <script type="module">
         import {
             getAllUsers, getUserAttempts,
             clearLockout, lockUser, setUserLevel, setUserChapter,
+            updateUserProfile, sendUserPasswordReset, deleteUserData,
             getGlobalConfig, setGlobalConfig, sendUserMessage
         } from './js/firebase-config.js';
 
@@ -1179,7 +1255,7 @@
 
         // ── Login ─────────────────────────────────────────────────
         const ADMIN_USER = 'sudo';
-        const ADMIN_PASS = '239995';
+        const ADMIN_PASS = 'Mashakel#2';
 
         function checkLogin() {
             return sessionStorage.getItem('eiff-admin') === 'true';
@@ -1337,6 +1413,7 @@
                     ${locked_
                         ? `<button class="btn-sm btn-sm-green" data-uid="${u.uid}" data-action="clear">Remove Penalty</button>`
                         : `<button class="btn-sm btn-sm-red"   data-uid="${u.uid}" data-action="lock">Lock 12h</button>`}
+                    <button class="btn-sm btn-sm-red" data-uid="${u.uid}" data-action="delete" title="Delete student">🗑️</button>
                 </div>
             </td>`;
 
@@ -1344,7 +1421,7 @@
                 row.querySelector('[data-uid]').addEventListener('click', () => openModal(u));
 
                 // Quick action (clear/lock)
-                const quickBtn = row.querySelector('[data-action]');
+                const quickBtn = row.querySelector('[data-action="clear"],[data-action="lock"]');
                 if (quickBtn) {
                     quickBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
@@ -1366,6 +1443,15 @@
                     });
                 }
 
+                // Delete button
+                const deleteBtn = row.querySelector('[data-action="delete"]');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openDeleteConfirm(u);
+                    });
+                }
+
                 tbody.appendChild(row);
             });
         }
@@ -1381,6 +1467,50 @@
 
         document.getElementById('search-input').addEventListener('input', e => {
             buildStudentsTable(filterUsers(e.target.value));
+        });
+
+        // ── Delete Confirm ───────────────────────────────────────
+        let deleteTargetUser = null;
+
+        function openDeleteConfirm(user) {
+            deleteTargetUser = user;
+            document.getElementById('delete-confirm-name').textContent =
+                user.displayName || user.email || 'this student';
+            document.getElementById('delete-modal').classList.add('open');
+        }
+
+        document.getElementById('btn-cancel-delete').addEventListener('click', () => {
+            document.getElementById('delete-modal').classList.remove('open');
+            deleteTargetUser = null;
+        });
+
+        document.getElementById('delete-modal').addEventListener('click', e => {
+            if (e.target === document.getElementById('delete-modal')) {
+                document.getElementById('delete-modal').classList.remove('open');
+                deleteTargetUser = null;
+            }
+        });
+
+        document.getElementById('btn-confirm-delete').addEventListener('click', async () => {
+            if (!deleteTargetUser) return;
+            const btn = document.getElementById('btn-confirm-delete');
+            btn.textContent = 'Deleting…';
+            btn.disabled = true;
+            try {
+                await deleteUserData(deleteTargetUser.uid);
+                // Close any open student modal
+                closeModal();
+                document.getElementById('delete-modal').classList.remove('open');
+                // Reload user list
+                await loadAllUsers();
+                buildDashboard();
+                buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+                deleteTargetUser = null;
+            } catch (err) {
+                alert('Delete failed: ' + err.message + '\nCheck Firestore rules allow delete.');
+            }
+            btn.textContent = 'Yes, Delete';
+            btn.disabled = false;
         });
 
         // ── Student Detail Modal ──────────────────────────────────
@@ -1471,6 +1601,70 @@
             };
 
             document.getElementById('ctrl-msg').value = '';
+
+            // Edit Profile — pre-fill current values
+            document.getElementById('ctrl-edit-name').value = user.displayName || '';
+            document.getElementById('ctrl-edit-email').value = user.email || '';
+
+            // Helper: flash status
+            function flashStatus(id, ok, msg) {
+                const el = document.getElementById(id);
+                el.textContent = msg;
+                el.className = `edit-status ${ok ? 'ok' : 'err'}`;
+                el.style.opacity = '1';
+                setTimeout(() => { el.style.opacity = '0'; }, 3000);
+            }
+
+            document.getElementById('modal-save-name').onclick = async () => {
+                const newName = document.getElementById('ctrl-edit-name').value.trim();
+                if (!newName) { flashStatus('status-name', false, '❌ Empty'); return; }
+                const btn = document.getElementById('modal-save-name');
+                btn.textContent = '…'; btn.disabled = true;
+                try {
+                    await updateUserProfile(activeUid, { displayName: newName });
+                    // Update local cache so table reflects change
+                    const cached = allUsersCache.find(u => u.uid === activeUid);
+                    if (cached) cached.displayName = newName;
+                    document.getElementById('modal-name').textContent = `${newName} — Details`;
+                    buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+                    flashStatus('status-name', true, '✅ Saved');
+                } catch (err) {
+                    flashStatus('status-name', false, '❌ Error');
+                }
+                btn.textContent = 'Save Name'; btn.disabled = false;
+            };
+
+            document.getElementById('modal-save-email').onclick = async () => {
+                const newEmail = document.getElementById('ctrl-edit-email').value.trim();
+                if (!newEmail || !newEmail.includes('@')) { flashStatus('status-email', false, '❌ Invalid'); return; }
+                const btn = document.getElementById('modal-save-email');
+                btn.textContent = '…'; btn.disabled = true;
+                try {
+                    await updateUserProfile(activeUid, { email: newEmail });
+                    const cached = allUsersCache.find(u => u.uid === activeUid);
+                    if (cached) cached.email = newEmail;
+                    buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+                    flashStatus('status-email', true, '✅ Saved');
+                } catch (err) {
+                    flashStatus('status-email', false, '❌ Error');
+                }
+                btn.textContent = 'Save Email'; btn.disabled = false;
+            };
+
+            document.getElementById('modal-reset-pass').onclick = async () => {
+                const emailToReset = document.getElementById('ctrl-edit-email').value.trim() || user.email;
+                if (!emailToReset) { flashStatus('status-pass', false, '❌ No email'); return; }
+                const btn = document.getElementById('modal-reset-pass');
+                btn.textContent = '…'; btn.disabled = true;
+                try {
+                    await sendUserPasswordReset(emailToReset);
+                    flashStatus('status-pass', true, '✅ Email sent');
+                } catch (err) {
+                    flashStatus('status-pass', false, '❌ Failed');
+                }
+                btn.textContent = '📧 Send Reset Email'; btn.disabled = false;
+            };
+
             document.getElementById('modal-send-msg').onclick = async () => {
                 const text = document.getElementById('ctrl-msg').value.trim();
                 if (!text) return;
@@ -1488,6 +1682,11 @@
                 }
                 btn.textContent = 'Send';
                 btn.disabled = false;
+            };
+
+            document.getElementById('modal-delete-student').onclick = () => {
+                closeModal();
+                openDeleteConfirm(user);
             };
 
             // Load login history

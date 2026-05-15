@@ -21,6 +21,11 @@
             <img src="assets/logo-nav.png" alt="EiFF Project">
         </a>
 
+        <!-- Hamburger toggle (mobile only) -->
+        <button class="chap-hamburger" id="chap-hamburger" aria-label="Toggle chapter menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+
         <!-- Chapter pills -->
         <nav class="nav-pills" id="chap-nav" aria-label="Chapter navigation"></nav>
 
@@ -147,7 +152,19 @@
 
             // Build navigation & levels
             buildChapterNav();
-            showChapterLevels(1);
+
+            // Read ?chapter=X from URL to resume the right chapter
+            const urlParams = new URLSearchParams(window.location.search);
+            const startCh = Math.max(1, Math.min(10, parseInt(urlParams.get('chapter')) || 1));
+            // Clamp to what's actually unlocked
+            const safeStartCh = Math.min(startCh, userData?.unlockedChapter ?? 1);
+            activeChapter = safeStartCh;
+            showChapterLevels(safeStartCh);
+
+            // Mark the correct pill as active
+            document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+            const activePill = document.getElementById(`chap-btn-${safeStartCh}`);
+            if (activePill) activePill.classList.add('active');
         });
 
         // ─── Sign Out ───────────────────────────────
@@ -160,8 +177,6 @@
         function buildChapterNav() {
             const nav = document.getElementById('chap-nav');
             nav.innerHTML = '';
-            // unlockedChapter: the index of the first chapter the user hasn't yet
-            // unlocked past. Chapter 1 is always accessible (default = 1).
             const unlockedChapter = userData?.unlockedChapter ?? 1;
 
             for (let c = 1; c <= TOTAL_CHAPTERS; c++) {
@@ -184,9 +199,21 @@
                     btn.setAttribute('aria-pressed', 'true');
                     activeChapter = c;
                     showChapterLevels(c);
+                    // Close hamburger menu on mobile after selection
+                    document.getElementById('chap-nav').classList.remove('open');
+                    document.getElementById('chap-hamburger').setAttribute('aria-expanded', 'false');
+                    document.getElementById('chap-hamburger').classList.remove('is-open');
                 });
                 nav.appendChild(btn);
             }
+
+            // Hamburger toggle logic
+            const hamburger = document.getElementById('chap-hamburger');
+            hamburger.addEventListener('click', () => {
+                const isOpen = nav.classList.toggle('open');
+                hamburger.setAttribute('aria-expanded', isOpen);
+                hamburger.classList.toggle('is-open', isOpen);
+            });
         }
 
         // ─── Show Levels + Master Quiz Card for a Chapter ────────
@@ -276,6 +303,28 @@
             }
 
             grid.appendChild(masterCard);
+
+            // ── Grand Quiz card (shown only when ALL 60 levels done) ────
+            if (unlockedLevel >= 60) {
+                const grandCard = document.createElement('div');
+                grandCard.className = `level-card grand-card`;
+                grandCard.setAttribute('role', 'button');
+                grandCard.setAttribute('tabindex', '0');
+                grandCard.setAttribute('aria-label', 'Grand Quiz — all chapters, 250 questions');
+                grandCard.innerHTML = `
+                    <div class="level-icon" aria-hidden="true">🌟</div>
+                    <div class="level-label" style="background: linear-gradient(135deg,#f59e0b,#ef4444,#3b82f6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">GRAND QUIZ</div>
+                    <div class="level-range">All 10 Chapters · 250 Questions</div>
+                    <div class="master-hint" style="color:#f59e0b;">240 / 250 required · No timer · No mistake limit</div>
+                `;
+                grandCard.addEventListener('click', () => {
+                    window.location.href = `quiz.html?type=grand`;
+                });
+                grandCard.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') grandCard.click();
+                });
+                grid.appendChild(grandCard);
+            }
 
             // Animate cards in
             grid.querySelectorAll('.level-card').forEach((card, i) => {

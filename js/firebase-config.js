@@ -1,8 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
-    getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
+    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
     collection, getDocs, addDoc, query, orderBy, limit, arrayUnion
 }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
@@ -31,6 +31,7 @@ async function eiffSignUp(email, password, displayName) {
         unlockedChapter: 1,
         createdAt: serverTimestamp(),
         lastSeen: serverTimestamp(),
+        // loginHistory uses Date.now() intentionally — serverTimestamp() cannot be stored inside Firestore arrays.
         loginHistory: [Date.now()]
     });
     return userCred.user;
@@ -38,9 +39,9 @@ async function eiffSignUp(email, password, displayName) {
 
 async function eiffSignIn(email, password) {
     const userCred = await signInWithEmailAndPassword(auth, email, password);
-    await updateDoc(doc(db, "users", userCred.user.uid), { 
+    await updateDoc(doc(db, "users", userCred.user.uid), {
         lastSeen: serverTimestamp(),
-        loginHistory: arrayUnion(Date.now())
+        loginHistory: arrayUnion(Date.now()) // Date.now() intentional — serverTimestamp() not allowed in arrays
     });
     return userCred.user;
 }
@@ -120,6 +121,19 @@ async function setUserChapter(uid, chapter) {
     await updateDoc(doc(db, "users", uid), { unlockedChapter: parseInt(chapter), lastSeen: serverTimestamp() });
 }
 
+// Admin: update a student's display name and/or email in Firestore
+async function updateUserProfile(uid, { displayName, email }) {
+    const updates = { lastSeen: serverTimestamp() };
+    if (displayName !== undefined && displayName !== null) updates.displayName = displayName;
+    if (email !== undefined && email !== null) updates.email = email;
+    await updateDoc(doc(db, "users", uid), updates);
+}
+
+// Admin: send a password reset email via Firebase Auth
+async function sendUserPasswordReset(email) {
+    await sendPasswordResetEmail(auth, email);
+}
+
 // ── Quiz Attempt Logging ──────────────────────────────────────────
 
 async function logQuizResult(uid, result) {
@@ -134,6 +148,15 @@ async function getUserAttempts(uid) {
     const q = query(collection(db, "users", uid, "attempts"), orderBy("timestamp", "desc"), limit(30));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// Admin: permanently delete a student and all their quiz history
+async function deleteUserData(uid) {
+    // Delete all attempts in subcollection first
+    const attemptsSnap = await getDocs(collection(db, "users", uid, "attempts"));
+    await Promise.all(attemptsSnap.docs.map(d => deleteDoc(doc(db, "users", uid, "attempts", d.id))));
+    // Delete the user document itself
+    await deleteDoc(doc(db, "users", uid));
 }
 
 // ── Global Config ─────────────────────────────────────────────────
@@ -182,6 +205,8 @@ export {
     eiffSignUp, eiffSignIn, eiffSignOut,
     getUserData, getAllUsers,
     unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
+    updateUserProfile, sendUserPasswordReset,
+    deleteUserData,
     logQuizAttempt, lockUser, checkLockout, clearLockout,
     logQuizResult, getUserAttempts,
     getGlobalConfig, setGlobalConfig,
