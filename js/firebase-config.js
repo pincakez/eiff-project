@@ -3,7 +3,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
     getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion
+    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where
 }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
@@ -29,6 +29,7 @@ async function eiffSignUp(email, password, displayName) {
         email,
         unlockedLevel: 1,
         unlockedChapter: 1,
+        isInsider: false,
         createdAt: serverTimestamp(),
         lastSeen: serverTimestamp(),
         // loginHistory uses Date.now() intentionally — serverTimestamp() cannot be stored inside Firestore arrays.
@@ -58,6 +59,15 @@ async function getUserData(uid) {
 async function getAllUsers() {
     const snap = await getDocs(collection(db, "users"));
     return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+}
+
+async function findUserByName(name) {
+    const q = query(collection(db, "users"), where("displayName", "==", name), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+        return snap.docs[0].data().email;
+    }
+    return null;
 }
 
 // ── Lockout ───────────────────────────────────────────────────────
@@ -119,6 +129,11 @@ async function setUserLevel(uid, level) {
 
 async function setUserChapter(uid, chapter) {
     await updateDoc(doc(db, "users", uid), { unlockedChapter: parseInt(chapter), lastSeen: serverTimestamp() });
+}
+
+// Admin: toggle the insider (ghost) flag on a user
+async function setInsiderFlag(uid, isInsider) {
+    await updateDoc(doc(db, "users", uid), { isInsider: Boolean(isInsider) });
 }
 
 // Admin: update a student's display name and/or email in Firestore
@@ -203,12 +218,13 @@ async function markMessageRead(uid, msgId) {
 export {
     auth, db, onAuthStateChanged,
     eiffSignUp, eiffSignIn, eiffSignOut,
-    getUserData, getAllUsers,
+    getUserData, getAllUsers, findUserByName,
     unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
     updateUserProfile, sendUserPasswordReset,
     deleteUserData,
     logQuizAttempt, lockUser, checkLockout, clearLockout,
     logQuizResult, getUserAttempts,
     getGlobalConfig, setGlobalConfig,
-    sendUserMessage, markMessageRead
+    sendUserMessage, markMessageRead,
+    setInsiderFlag
 };

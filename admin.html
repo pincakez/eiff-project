@@ -488,6 +488,18 @@
             border: 1px solid rgba(100, 116, 139, 0.2);
         }
 
+        .badge-purple {
+            background: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.35);
+        }
+
+        .btn-sm-purple {
+            background: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.35);
+        }
+
         .progress-text {
             font-weight: 700;
             font-size: 0.875rem;
@@ -1056,6 +1068,14 @@
                             </div>
                             <input type="range" id="rng-mm" min="1" max="10" value="3">
                         </div>
+
+                        <div class="setting-row" style="margin-top:20px;">
+                            <div class="setting-label">
+                                <span class="setting-name">Grand Quiz — max mistakes</span>
+                                <span class="setting-val" id="lbl-mg">5</span>
+                            </div>
+                            <input type="range" id="rng-mg" min="1" max="15" value="5">
+                        </div>
                     </div>
 
                     <div class="settings-card">
@@ -1084,7 +1104,10 @@
         <div class="modal">
             <div class="modal-top">
                 <div class="modal-title" id="modal-name">Student</div>
-                <button class="btn-close" id="modal-close">✕</button>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="badge badge-purple" id="modal-insider-badge" style="display:none;">👻 INSIDER</span>
+                    <button class="btn-close" id="modal-close">✕</button>
+                </div>
             </div>
 
             <!-- Stats row -->
@@ -1114,9 +1137,17 @@
             </div>
 
             <div class="control-group">
-                <div class="control-label">📚 Set Unlocked Level (1–60)</div>
+                <div class="control-label">👻 Insider (Ghost) Account</div>
+                <div class="action-btns">
+                    <button class="btn-sm btn-sm-purple" id="modal-toggle-insider">Toggle Insider Status</button>
+                    <span id="modal-insider-status" style="font-size:0.78rem;color:var(--text2);align-self:center;">—</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">📚 Set Unlocked Level (1–61)</div>
                 <div class="control-row">
-                    <input type="range" id="ctrl-level" min="1" max="60" value="1">
+                    <input type="range" id="ctrl-level" min="1" max="61" value="1">
                     <div class="control-val" id="lbl-ctrl-level">1</div>
                     <button class="btn-sm btn-sm-amber" id="modal-set-level">Apply</button>
                 </div>
@@ -1222,7 +1253,7 @@
             getAllUsers, getUserAttempts,
             clearLockout, lockUser, setUserLevel, setUserChapter,
             updateUserProfile, sendUserPasswordReset, deleteUserData,
-            getGlobalConfig, setGlobalConfig, sendUserMessage
+            getGlobalConfig, setGlobalConfig, sendUserMessage, setInsiderFlag
         } from './js/firebase-config.js';
 
         // ── Helpers ──────────────────────────────────────────────
@@ -1387,13 +1418,15 @@
             users.forEach(u => {
                 const gl = u.unlockedLevel ?? 1;
                 const locked_ = isLocked(u);
+                const insider = u.isInsider === true;
                 const row = document.createElement('tr');
+                if (insider) row.style.background = 'rgba(139,92,246,0.05)';
                 row.innerHTML = `
             <td>
                 <div class="user-cell">
-                    <div class="avatar">${(u.displayName || u.email || '?')[0].toUpperCase()}</div>
+                    <div class="avatar" style="${insider ? 'background:linear-gradient(135deg,#8b5cf6,#6d28d9);' : ''}">${(u.displayName || u.email || '?')[0].toUpperCase()}</div>
                     <div>
-                        <div class="user-name">${u.displayName || '—'}</div>
+                        <div class="user-name">${u.displayName || '—'} ${insider ? '<span class="badge badge-purple" style="font-size:0.6rem;padding:2px 7px;">👻 INSIDER</span>' : ''}</div>
                         <div class="user-email">${u.email || ''}</div>
                     </div>
                 </div>
@@ -1600,6 +1633,33 @@
                 btn.disabled = false;
             };
 
+            // Insider toggling
+            const isInsider = user.isInsider === true;
+            document.getElementById('modal-insider-badge').style.display = isInsider ? 'inline-flex' : 'none';
+            document.getElementById('modal-insider-status').textContent = isInsider ? 'Currently an Insider ✅' : 'Normal Account';
+            
+            document.getElementById('modal-toggle-insider').onclick = async () => {
+                const btn = document.getElementById('modal-toggle-insider');
+                const willBeInsider = !user.isInsider;
+                btn.textContent = '…';
+                btn.disabled = true;
+                try {
+                    await setInsiderFlag(activeUid, willBeInsider);
+                    user.isInsider = willBeInsider; // Update local state immediately
+                    
+                    document.getElementById('modal-insider-badge').style.display = willBeInsider ? 'inline-flex' : 'none';
+                    document.getElementById('modal-insider-status').textContent = willBeInsider ? 'Currently an Insider ✅' : 'Normal Account';
+                    btn.textContent = 'Toggle Insider Status';
+                    
+                    await loadAllUsers();
+                    buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+                } catch (err) {
+                    alert('Error toggling insider flag.');
+                    btn.textContent = 'Toggle Insider Status';
+                }
+                btn.disabled = false;
+            };
+
             document.getElementById('ctrl-msg').value = '';
 
             // Edit Profile — pre-fill current values
@@ -1778,6 +1838,7 @@
                     const t = cfg.timeLimit ?? 8;
                     const ml = cfg.maxMistakesLevel ?? 2;
                     const mm = cfg.maxMistakesMaster ?? 3;
+                    const mg = cfg.maxMistakesGrand ?? 5;
                     const ph = cfg.penaltyHours ?? 12;
                     
                     document.getElementById('rng-timer').value = t;
@@ -1786,6 +1847,8 @@
                     document.getElementById('lbl-ml').textContent = ml;
                     document.getElementById('rng-mm').value = mm;
                     document.getElementById('lbl-mm').textContent = mm;
+                    document.getElementById('rng-mg').value = mg;
+                    document.getElementById('lbl-mg').textContent = mg;
                     document.getElementById('rng-penalty').value = ph;
                     document.getElementById('lbl-penalty').textContent = `${ph}h`;
 
@@ -1804,6 +1867,9 @@
         document.getElementById('rng-mm').addEventListener('input', e => {
             document.getElementById('lbl-mm').textContent = e.target.value;
         });
+        document.getElementById('rng-mg').addEventListener('input', e => {
+            document.getElementById('lbl-mg').textContent = e.target.value;
+        });
         document.getElementById('rng-penalty').addEventListener('input', e => {
             document.getElementById('lbl-penalty').textContent = `${e.target.value}h`;
         });
@@ -1819,6 +1885,7 @@
                     timeLimit: parseInt(document.getElementById('rng-timer').value),
                     maxMistakesLevel: parseInt(document.getElementById('rng-ml').value),
                     maxMistakesMaster: parseInt(document.getElementById('rng-mm').value),
+                    maxMistakesGrand: parseInt(document.getElementById('rng-mg').value),
                     penaltyHours: penaltyHours
                 });
                 CURRENT_PENALTY_MS = penaltyHours * 60 * 60 * 1000;

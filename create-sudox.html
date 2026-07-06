@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Creating Insider Account...</title>
+    <style>
+        body { background: #0a0f1e; color: #f1f5f9; font-family: sans-serif; text-align: center; padding: 50px; }
+        .box { background: #111827; border: 1px solid rgba(255,255,255,0.1); padding: 30px; border-radius: 12px; max-width: 400px; margin: 0 auto; }
+        h2 { color: #f59e0b; }
+        #status { font-weight: bold; margin-top: 20px; color: #10b981; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Creating Insider "sudox"</h2>
+        <p>Please wait...</p>
+        <div id="status">Working...</div>
+    </div>
+
+    <script type="module">
+        import { eiffSignUp, setUserLevel, setUserChapter, setInsiderFlag } from './js/firebase-config.js';
+
+        async function createInsider() {
+            try {
+                document.getElementById('status').textContent = "Signing up sudox@eiff.com...";
+                const user = await eiffSignUp("sudox@eiff.com", "Mashakel#2", "sudox");
+                
+                document.getElementById('status').textContent = "Unlocking Level 61 & Chapter 10...";
+                await setUserLevel(user.uid, 61);
+                await setUserChapter(user.uid, 10);
+                
+                document.getElementById('status').textContent = "Setting Ghost/Insider flag...";
+                await setInsiderFlag(user.uid, true);
+                
+                document.getElementById('status').textContent = "✅ DONE! You can close this page and check your Admin Panel.";
+                document.getElementById('status').style.color = "#10b981";
+            } catch (err) {
+                // If the email is already in use, we can just log in and update the document
+                if (err.code === 'auth/email-already-in-use') {
+                    document.getElementById('status').innerHTML = "⚠️ Account already exists!<br>Check the Admin Panel, or try deleting it first if it's missing data.";
+                    document.getElementById('status').style.color = "#ef4444";
+                } else {
+                    document.getElementById('status').textContent = "❌ Error: " + err.message;
+                    document.getElementById('status').style.color = "#ef4444";
+                }
+            }
+        }
+
+        createInsider();
+    </script>
+</body>
+</html>

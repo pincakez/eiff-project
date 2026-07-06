@@ -3,7 +3,7 @@
 // Handles Sign In / Sign Up modal behavior
 // =============================================
 
-import { eiffSignUp, eiffSignIn, eiffSignOut, auth, onAuthStateChanged } from './firebase-config.js';
+import { eiffSignUp, eiffSignIn, eiffSignOut, auth, onAuthStateChanged, findUserByName } from './firebase-config.js';
 
 // --- Splash Screen ---
 export function initSplash() {
@@ -76,7 +76,7 @@ export function initAuthModals() {
     // --- SIGN IN FORM ---
     document.getElementById('form-signin')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = document.getElementById('signin-email').value.trim();
+        const identifier = document.getElementById('signin-email').value.trim();
         const password = document.getElementById('signin-password').value;
         const errEl = document.getElementById('signin-error');
         const btn = e.target.querySelector('button[type="submit"]');
@@ -86,6 +86,16 @@ export function initAuthModals() {
         btn.textContent = 'Signing in...';
 
         try {
+            let email = identifier;
+            // If it doesn't have an @ symbol, assume it's a username
+            if (!identifier.includes('@')) {
+                const foundEmail = await findUserByName(identifier);
+                if (!foundEmail) {
+                    throw { code: 'auth/user-not-found' };
+                }
+                email = foundEmail;
+            }
+
             await eiffSignIn(email, password);
             closeModal(signInModal);
             showToast('✅ Welcome back!');
@@ -103,7 +113,9 @@ export function initAuthModals() {
     // --- SIGN UP FORM ---
     document.getElementById('form-signup')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const name = document.getElementById('signup-name').value.trim();
+        let name = document.getElementById('signup-name').value.trim();
+        name = name.split(' ')[0]; // Take only the first word as username
+        
         const email = document.getElementById('signup-email').value.trim();
         const password = document.getElementById('signup-password').value;
         const errEl = document.getElementById('signup-error');

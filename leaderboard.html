@@ -358,7 +358,7 @@
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = 'index.html'; return; }
 
-            const users = await getAllUsers();
+            const users = (await getAllUsers()).filter(u => !u.isInsider);
             // Sort: highest unlockedLevel first, unlockedChapter as tiebreaker
             users.sort((a, b) => {
                 const la = a.unlockedLevel ?? 1, lb = b.unlockedLevel ?? 1;
