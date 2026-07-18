@@ -6,17 +6,23 @@
 
 ---
 
-## ⚠️ CRITICAL WARNING — READ BEFORE TOUCHING ANYTHING
+## ⚠️ CRITICAL WARNINGS — READ BEFORE TOUCHING ANYTHING
 
 ```
-🚨 DO NOT open, read, analyze, or include js/data-sector1A.js in any context window.
-
+🚨 RULE 1: DO NOT open, read, analyze, or include js/data-sector1A.js in any context window.
 The file is 153,434+ characters of raw vocabulary data (vocabData object).
 It will consume the entire token budget and contribute NOTHING to debugging or logic.
-
 The vocabData object is already loaded globally via ES module import on every page.
 Just trust that vocabData[chapter][level] = [ { en, ar, eg }, ... ] works.
 Treat it as a black box. Never analyze it.
+
+🚨 RULE 2: LIVE DEPLOYMENT WARNING (GitHub Pages)
+The user reviews their changes on: https://pincakez.github.io/eiff-project/
+Modifying local files in 'C:\Users\pinca\Desktop\testarea' is NOT enough for them to see it!
+Any changes you make locally MUST be committed and pushed to the GitHub repository so 
+GitHub Pages can build and deploy the updates.
+Always run 'git add . ; git commit -m "..." ; git push' when you finish a task, 
+then wait ~60 seconds for the deploy to complete.
 ```
 
 ---
@@ -293,6 +299,13 @@ npx serve
 
 ## 📋 Changelog
 
+### V1.6 — 2026-07-06
+- **Username Login Support**: Users can now log in using either their email OR their username (`displayName`). When logging in, the system checks for the presence of `@`. If absent, it queries Firestore using `findUserByName()` to resolve the email.
+- **First Name Username Rule**: New signups automatically truncate the display name to the first word (using `.split(' ')[0]`) to ensure clean usernames.
+- **Insider/Ghost Accounts**: Added `isInsider` boolean flag in Firestore. When set to `true`, the user is excluded from the public leaderboard (`leaderboard.html`) but remains fully manageable in `admin.html` (designated by a purple `👻 INSIDER` badge).
+- **Grand Quiz Mistake Slider**: Added a slider to the Admin panel to configure `maxMistakesGrand` dynamically in Firestore `config/quiz`.
+- **Warning for AI Collaborators**: Added deployment and local-vs-live warnings to this README.
+
 ### V1.5 — 2026-05-15
 - **Admin password** changed to `Mashakel#2` (username: `sudo`)
 - **Edit Profile** section added to Student Detail Modal:
@@ -318,4 +331,4 @@ npx serve
 
 ---
 
-*Built session by session with Antigravity AI — March 2026*
+*Built session by session with Antigravity AI — July 2026*
