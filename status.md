@@ -12,6 +12,27 @@
 #
 # For credentials, Firebase config, and full architecture notes see: .env
 # For full technical docs see: README.md
+#
+# ============================================================
+# 🚨 IMPORTANT — IF THIS IS A NEW SESSION OR A NEW PC:
+# ============================================================
+#
+#   1. GIT CREDENTIALS (new PC only):
+#      The .env file copies fine when the folder is moved manually,
+#      but git push requires GitHub credentials on the new machine.
+#      Before trying to push, run:
+#        git config --global user.email "pincakez@github.com"
+#        git config --global user.name "pincakez"
+#      Then set up a GitHub Personal Access Token (PAT) if prompted.
+#      Without this, the AI can edit files but CANNOT push to GitHub.
+#
+#   2. .ENV IS LOCAL ONLY — NOT ON GITHUB:
+#      The .env file is listed in .gitignore and was NEVER committed.
+#      If you cloned this repo fresh from GitHub, .env will be MISSING.
+#      You must recreate it manually from README.md or ask the user.
+#      If the folder was physically copied (not git-cloned), .env is there.
+#      Check with: dir .env  (Windows) or ls -la .env (Mac/Linux)
+#
 # ============================================================
 
 ---
