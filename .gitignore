@@ -9,3 +9,7 @@ Thumbs.db
 .firebaserc
 .vscode/
 .idea/
+
+# AI collaborator access file — keep local only, NEVER commit
+.env
+temp.js
