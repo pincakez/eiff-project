@@ -942,8 +942,17 @@
                 <div class="nav-item" data-page="students">
                     <span class="nav-icon">👥</span> Students
                 </div>
-                <div class="nav-item" data-page="settings">
-                    <span class="nav-icon">⚙️</span> Global Config
+                <div class="nav-item" data-page="level">
+                    <span class="nav-icon">📝</span> Level Quiz
+                </div>
+                <div class="nav-item" data-page="master">
+                    <span class="nav-icon">🏆</span> Master Quiz
+                </div>
+                <div class="nav-item" data-page="grand">
+                    <span class="nav-icon">🌟</span> Grand Quiz
+                </div>
+                <div class="nav-item" data-page="boss">
+                    <span class="nav-icon">👹</span> THE FINAL BOSS
                 </div>
             </nav>
             <div class="sidebar-footer">
@@ -1034,15 +1043,14 @@
                     </div>
                 </div>
 
-                <!-- ── Settings page ─────────────── -->
-                <div class="page" id="page-settings">
+                <!-- ── Level Quiz Config page ─────────────── -->
+                <div class="page" id="page-level">
                     <div class="settings-card">
-                        <div class="settings-title">⏱️ Quiz Timer</div>
+                        <div class="settings-title">⏱️ Level Quiz Timer</div>
                         <div class="settings-sub">Seconds allowed per question in Level Quizzes.</div>
-
                         <div class="setting-row">
                             <div class="setting-label">
-                                <span class="setting-name">Time Limit (seconds)</span>
+                                <span class="setting-name">Time Limit</span>
                                 <span class="setting-val" id="lbl-timer">8s</span>
                             </div>
                             <input type="range" id="rng-timer" min="2" max="20" value="8">
@@ -1050,49 +1058,191 @@
                     </div>
 
                     <div class="settings-card">
-                        <div class="settings-title">💥 Mistake Limits</div>
-                        <div class="settings-sub">How many wrong answers before a student is ejected.</div>
-
+                        <div class="settings-title">💥 Mistake Limit</div>
+                        <div class="settings-sub">Wrong answers allowed before student is ejected from a Level Quiz.</div>
                         <div class="setting-row">
                             <div class="setting-label">
-                                <span class="setting-name">Level Quiz — max mistakes</span>
+                                <span class="setting-name">Max Mistakes</span>
                                 <span class="setting-val" id="lbl-ml">2</span>
                             </div>
                             <input type="range" id="rng-ml" min="1" max="5" value="2">
-                        </div>
-
-                        <div class="setting-row" style="margin-top:20px;">
-                            <div class="setting-label">
-                                <span class="setting-name">Master Quiz — max mistakes</span>
-                                <span class="setting-val" id="lbl-mm">3</span>
-                            </div>
-                            <input type="range" id="rng-mm" min="1" max="10" value="3">
-                        </div>
-
-                        <div class="setting-row" style="margin-top:20px;">
-                            <div class="setting-label">
-                                <span class="setting-name">Grand Quiz — max mistakes</span>
-                                <span class="setting-val" id="lbl-mg">5</span>
-                            </div>
-                            <input type="range" id="rng-mg" min="1" max="15" value="5">
                         </div>
                     </div>
 
                     <div class="settings-card">
                         <div class="settings-title">⏳ Penalty Duration</div>
                         <div class="settings-sub">Lockout time (hours) after failing or starting a quiz.</div>
-
                         <div class="setting-row">
                             <div class="setting-label">
-                                <span class="setting-name">Lockout Period (hours)</span>
+                                <span class="setting-name">Lockout Period</span>
                                 <span class="setting-val" id="lbl-penalty">12h</span>
                             </div>
                             <input type="range" id="rng-penalty" min="1" max="48" value="12">
                         </div>
                     </div>
 
-                    <button class="btn-save" id="btn-save-settings">Save to Firestore</button>
-                    <span class="save-toast" id="save-toast">✅ Saved!</span>
+                    <button class="btn-save" id="btn-save-level">Save Level Quiz Config</button>
+                    <span class="save-toast" id="save-toast-level">✅ Saved!</span>
+                </div>
+
+                <!-- ── Master Quiz Config page ─────────────── -->
+                <div class="page" id="page-master">
+                    <div class="settings-card">
+                        <div class="settings-title">⏱️ Master Quiz Timer</div>
+                        <div class="settings-sub">Seconds per question in Master Quizzes (set to 0 for no timer).</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Time Limit (0 = Off)</span>
+                                <span class="setting-val" id="lbl-master-timer">Off</span>
+                            </div>
+                            <input type="range" id="rng-master-timer" min="0" max="30" value="0">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">💥 Mistake Limit</div>
+                        <div class="settings-sub">Wrong answers allowed before ejection in Master Quizzes.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Max Mistakes</span>
+                                <span class="setting-val" id="lbl-mm">3</span>
+                            </div>
+                            <input type="range" id="rng-mm" min="1" max="10" value="3">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">📊 Pass Percentage</div>
+                        <div class="settings-sub">Score % required to pass a Master Quiz and unlock the next chapter.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Required Pass %</span>
+                                <span class="setting-val" id="lbl-master-pass">96%</span>
+                            </div>
+                            <input type="range" id="rng-master-pass" min="50" max="100" value="96">
+                        </div>
+                    </div>
+
+                    <button class="btn-save" id="btn-save-master">Save Master Quiz Config</button>
+                    <span class="save-toast" id="save-toast-master">✅ Saved!</span>
+                </div>
+
+                <!-- ── Grand Quiz Config page ─────────────── -->
+                <div class="page" id="page-grand">
+                    <div class="settings-card">
+                        <div class="settings-title">💬 Entry Warning Message</div>
+                        <div class="settings-sub">Message shown in a popup modal before student begins the Grand Quiz.</div>
+                        <textarea id="txt-grand-msg" style="width:100%; height:80px; background:var(--navy3); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px; font-family:'Inter',sans-serif; margin-top:10px; outline:none;" placeholder="Enter Grand Quiz warning message..."></textarea>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">⏱️ Grand Quiz Timer</div>
+                        <div class="settings-sub">Seconds per question (set to 0 for no timer).</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Time Limit (0 = Off)</span>
+                                <span class="setting-val" id="lbl-grand-timer">Off</span>
+                            </div>
+                            <input type="range" id="rng-grand-timer" min="0" max="30" value="0">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">💥 Mistake Limit</div>
+                        <div class="settings-sub">Wrong answers allowed before ejection in Grand Quiz.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Max Mistakes</span>
+                                <span class="setting-val" id="lbl-mg">5</span>
+                            </div>
+                            <input type="range" id="rng-mg" min="1" max="30" value="5">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">📊 Pass Percentage</div>
+                        <div class="settings-sub">Score % required to conquer the Grand Quiz.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Required Pass %</span>
+                                <span class="setting-val" id="lbl-grand-pass">96%</span>
+                            </div>
+                            <input type="range" id="rng-grand-pass" min="50" max="100" value="96">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">📚 Chapter Distribution (250 Total Questions)</div>
+                        <div class="settings-sub">Specify what percentage of the 250 questions should come from each chapter. Must sum to 100%.</div>
+                        <div style="margin-top: 15px; padding: 8px 12px; background: rgba(59,130,246,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 700; font-size: 0.9rem;">Distribution Total:</span>
+                            <span id="grand-pct-total" style="font-weight: 900; font-size: 1.1rem; color: var(--green);">100%</span>
+                        </div>
+                        <div id="grand-pct-sliders" style="margin-top: 15px; display: grid; gap: 12px;"></div>
+                    </div>
+
+                    <button class="btn-save" id="btn-save-grand">Save Grand Quiz Config</button>
+                    <span class="save-toast" id="save-toast-grand">✅ Saved!</span>
+                </div>
+
+                <!-- ── THE FINAL BOSS Config page ─────────────── -->
+                <div class="page" id="page-boss">
+                    <div class="settings-card">
+                        <div class="settings-title">💬 Entry Warning Message</div>
+                        <div class="settings-sub">Message shown in a popup modal before student faces THE FINAL BOSS.</div>
+                        <textarea id="txt-boss-msg" style="width:100%; height:80px; background:var(--navy3); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px; font-family:'Inter',sans-serif; margin-top:10px; outline:none;" placeholder="Enter Final Boss warning message..."></textarea>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">🔢 Total Questions</div>
+                        <div class="settings-sub">Number of questions randomly sampled from all Master Quizzes.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Question Count</span>
+                                <span class="setting-val" id="lbl-boss-questions">100</span>
+                            </div>
+                            <input type="range" id="rng-boss-questions" min="10" max="300" step="10" value="100">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">⏱️ Final Boss Timer</div>
+                        <div class="settings-sub">Seconds per question (set to 0 for no timer).</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Time Limit (0 = Off)</span>
+                                <span class="setting-val" id="lbl-boss-timer">Off</span>
+                            </div>
+                            <input type="range" id="rng-boss-timer" min="0" max="30" value="0">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">💥 Mistake Limit</div>
+                        <div class="settings-sub">Wrong answers allowed before ejection.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Max Mistakes</span>
+                                <span class="setting-val" id="lbl-boss-mistakes">10</span>
+                            </div>
+                            <input type="range" id="rng-boss-mistakes" min="1" max="50" value="10">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">📊 Pass Percentage</div>
+                        <div class="settings-sub">Score % required to defeat THE FINAL BOSS.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Required Pass %</span>
+                                <span class="setting-val" id="lbl-boss-pass">90%</span>
+                            </div>
+                            <input type="range" id="rng-boss-pass" min="50" max="100" value="90">
+                        </div>
+                    </div>
+
+                    <button class="btn-save" id="btn-save-boss">Save Final Boss Config</button>
+                    <span class="save-toast" id="save-toast-boss">✅ Saved!</span>
                 </div>
 
             </div>
@@ -1326,7 +1476,10 @@
         const PAGE_META = {
             dashboard: { title: 'Dashboard', sub: 'Overview of all students and activity' },
             students: { title: 'Students', sub: 'Manage individual student progress and penalties' },
-            settings: { title: 'Global Config', sub: 'Adjust quiz rules that affect ALL students live' },
+            level: { title: 'Level Quiz Config', sub: 'Adjust rules for 10-question Level Quizzes' },
+            master: { title: 'Master Quiz Config', sub: 'Adjust rules for 50-question Master Quizzes' },
+            grand: { title: 'Grand Quiz Config', sub: 'Adjust rules, warning message, & chapter mix for Grand Quiz' },
+            boss: { title: 'THE FINAL BOSS Config', sub: 'Adjust settings for the ultimate Final Boss exam' },
         };
 
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -1830,72 +1983,232 @@
             if (e.target === document.getElementById('student-modal')) closeModal();
         });
 
-        // ── Settings ──────────────────────────────────────────────
+        // ── Settings (Level, Master, Grand, Boss) ─────────────────
+        let currentGrandPct = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
+
         async function loadSettings() {
             try {
                 const cfg = await getGlobalConfig();
                 if (cfg) {
+                    // Level Quiz
                     const t = cfg.timeLimit ?? 8;
                     const ml = cfg.maxMistakesLevel ?? 2;
-                    const mm = cfg.maxMistakesMaster ?? 3;
-                    const mg = cfg.maxMistakesGrand ?? 5;
                     const ph = cfg.penaltyHours ?? 12;
-                    
+
                     document.getElementById('rng-timer').value = t;
                     document.getElementById('lbl-timer').textContent = `${t}s`;
                     document.getElementById('rng-ml').value = ml;
                     document.getElementById('lbl-ml').textContent = ml;
-                    document.getElementById('rng-mm').value = mm;
-                    document.getElementById('lbl-mm').textContent = mm;
-                    document.getElementById('rng-mg').value = mg;
-                    document.getElementById('lbl-mg').textContent = mg;
                     document.getElementById('rng-penalty').value = ph;
                     document.getElementById('lbl-penalty').textContent = `${ph}h`;
 
-                    // Update global penalty for calculations
+                    // Master Quiz
+                    const mt = cfg.masterTimeLimit ?? 0;
+                    const mm = cfg.maxMistakesMaster ?? 3;
+                    const mp = cfg.masterPassPct ?? 96;
+
+                    document.getElementById('rng-master-timer').value = mt;
+                    document.getElementById('lbl-master-timer').textContent = mt === 0 ? 'Off' : `${mt}s`;
+                    document.getElementById('rng-mm').value = mm;
+                    document.getElementById('lbl-mm').textContent = mm;
+                    document.getElementById('rng-master-pass').value = mp;
+                    document.getElementById('lbl-master-pass').textContent = `${mp}%`;
+
+                    // Grand Quiz
+                    const gt = cfg.grandTimeLimit ?? 0;
+                    const mg = cfg.maxMistakesGrand ?? 5;
+                    const gp = cfg.grandPassPct ?? 96;
+                    const gmsg = cfg.grandEntryMessage ?? "⚠️ WARNING: You are entering the GRAND QUIZ. 250 Questions across all 10 chapters. Stay focused!";
+                    if (Array.isArray(cfg.grandPct) && cfg.grandPct.length === 10) {
+                        currentGrandPct = cfg.grandPct;
+                    }
+
+                    document.getElementById('txt-grand-msg').value = gmsg;
+                    document.getElementById('rng-grand-timer').value = gt;
+                    document.getElementById('lbl-grand-timer').textContent = gt === 0 ? 'Off' : `${gt}s`;
+                    document.getElementById('rng-mg').value = mg;
+                    document.getElementById('lbl-mg').textContent = mg;
+                    document.getElementById('rng-grand-pass').value = gp;
+                    document.getElementById('lbl-grand-pass').textContent = `${gp}%`;
+
+                    renderGrandPctSliders();
+
+                    // Final Boss Quiz
+                    const bmsg = cfg.bossEntryMessage ?? "👹 THE FINAL BOSS HAS AWAKENED! Prepare to face questions from all master quizzes randomly. Prove your absolute mastery!";
+                    const bq = cfg.bossQuestions ?? 100;
+                    const bt = cfg.bossTimeLimit ?? 0;
+                    const bm = cfg.bossMaxMistakes ?? 10;
+                    const bp = cfg.bossPassPct ?? 90;
+
+                    document.getElementById('txt-boss-msg').value = bmsg;
+                    document.getElementById('rng-boss-questions').value = bq;
+                    document.getElementById('lbl-boss-questions').textContent = bq;
+                    document.getElementById('rng-boss-timer').value = bt;
+                    document.getElementById('lbl-boss-timer').textContent = bt === 0 ? 'Off' : `${bt}s`;
+                    document.getElementById('rng-boss-mistakes').value = bm;
+                    document.getElementById('lbl-boss-mistakes').textContent = bm;
+                    document.getElementById('rng-boss-pass').value = bp;
+                    document.getElementById('lbl-boss-pass').textContent = `${bp}%`;
+
                     CURRENT_PENALTY_MS = ph * 60 * 60 * 1000;
                 }
             } catch (_) { }
         }
 
-        document.getElementById('rng-timer').addEventListener('input', e => {
+        function renderGrandPctSliders() {
+            const container = document.getElementById('grand-pct-sliders');
+            if (!container) return;
+            container.innerHTML = '';
+
+            currentGrandPct.forEach((val, i) => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display: flex; align-items: center; gap: 12px; font-size: 0.85rem;';
+                row.innerHTML = `
+                    <span style="width: 80px; font-weight: 600;">Chapter ${i + 1}</span>
+                    <input type="range" class="rng-grand-ch" data-ch="${i}" min="0" max="100" value="${val}" style="flex: 1;">
+                    <span id="lbl-grand-ch-${i}" style="width: 45px; text-align: right; font-weight: 700; color: var(--amber);">${val}%</span>
+                `;
+                container.appendChild(row);
+            });
+
+            updateGrandPctTotal();
+
+            container.querySelectorAll('.rng-grand-ch').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    const idx = parseInt(e.target.dataset.ch);
+                    const v = parseInt(e.target.value);
+                    currentGrandPct[idx] = v;
+                    document.getElementById(`lbl-grand-ch-${idx}`).textContent = `${v}%`;
+                    updateGrandPctTotal();
+                });
+            });
+        }
+
+        function updateGrandPctTotal() {
+            const sum = currentGrandPct.reduce((a, b) => a + b, 0);
+            const totalEl = document.getElementById('grand-pct-total');
+            if (totalEl) {
+                totalEl.textContent = `${sum}%`;
+                if (sum === 100) {
+                    totalEl.style.color = 'var(--green)';
+                } else {
+                    totalEl.style.color = 'var(--red)';
+                }
+            }
+        }
+
+        // Live input listeners for Level Quiz
+        document.getElementById('rng-timer')?.addEventListener('input', e => {
             document.getElementById('lbl-timer').textContent = `${e.target.value}s`;
         });
-        document.getElementById('rng-ml').addEventListener('input', e => {
+        document.getElementById('rng-ml')?.addEventListener('input', e => {
             document.getElementById('lbl-ml').textContent = e.target.value;
         });
-        document.getElementById('rng-mm').addEventListener('input', e => {
-            document.getElementById('lbl-mm').textContent = e.target.value;
-        });
-        document.getElementById('rng-mg').addEventListener('input', e => {
-            document.getElementById('lbl-mg').textContent = e.target.value;
-        });
-        document.getElementById('rng-penalty').addEventListener('input', e => {
+        document.getElementById('rng-penalty')?.addEventListener('input', e => {
             document.getElementById('lbl-penalty').textContent = `${e.target.value}h`;
         });
 
-        document.getElementById('btn-save-settings').addEventListener('click', async () => {
-            const btn = document.getElementById('btn-save-settings');
-            const toast = document.getElementById('save-toast');
+        // Live input listeners for Master Quiz
+        document.getElementById('rng-master-timer')?.addEventListener('input', e => {
+            document.getElementById('lbl-master-timer').textContent = e.target.value == 0 ? 'Off' : `${e.target.value}s`;
+        });
+        document.getElementById('rng-mm')?.addEventListener('input', e => {
+            document.getElementById('lbl-mm').textContent = e.target.value;
+        });
+        document.getElementById('rng-master-pass')?.addEventListener('input', e => {
+            document.getElementById('lbl-master-pass').textContent = `${e.target.value}%`;
+        });
+
+        // Live input listeners for Grand Quiz
+        document.getElementById('rng-grand-timer')?.addEventListener('input', e => {
+            document.getElementById('lbl-grand-timer').textContent = e.target.value == 0 ? 'Off' : `${e.target.value}s`;
+        });
+        document.getElementById('rng-mg')?.addEventListener('input', e => {
+            document.getElementById('lbl-mg').textContent = e.target.value;
+        });
+        document.getElementById('rng-grand-pass')?.addEventListener('input', e => {
+            document.getElementById('lbl-grand-pass').textContent = `${e.target.value}%`;
+        });
+
+        // Live input listeners for Final Boss Quiz
+        document.getElementById('rng-boss-questions')?.addEventListener('input', e => {
+            document.getElementById('lbl-boss-questions').textContent = e.target.value;
+        });
+        document.getElementById('rng-boss-timer')?.addEventListener('input', e => {
+            document.getElementById('lbl-boss-timer').textContent = e.target.value == 0 ? 'Off' : `${e.target.value}s`;
+        });
+        document.getElementById('rng-boss-mistakes')?.addEventListener('input', e => {
+            document.getElementById('lbl-boss-mistakes').textContent = e.target.value;
+        });
+        document.getElementById('rng-boss-pass')?.addEventListener('input', e => {
+            document.getElementById('lbl-boss-pass').textContent = `${e.target.value}%`;
+        });
+
+        // Save handlers
+        async function saveConfigHelper(btnId, toastId, dataFn) {
+            const btn = document.getElementById(btnId);
+            const toast = document.getElementById(toastId);
             btn.disabled = true;
             btn.textContent = 'Saving…';
             try {
-                const penaltyHours = parseInt(document.getElementById('rng-penalty').value);
-                await setGlobalConfig({
-                    timeLimit: parseInt(document.getElementById('rng-timer').value),
-                    maxMistakesLevel: parseInt(document.getElementById('rng-ml').value),
-                    maxMistakesMaster: parseInt(document.getElementById('rng-mm').value),
-                    maxMistakesGrand: parseInt(document.getElementById('rng-mg').value),
-                    penaltyHours: penaltyHours
-                });
-                CURRENT_PENALTY_MS = penaltyHours * 60 * 60 * 1000;
+                const data = dataFn();
+                if (data === false) {
+                    btn.disabled = false;
+                    btn.textContent = 'Save Config';
+                    return;
+                }
+                await setGlobalConfig(data);
+                if (data.penaltyHours != null) {
+                    CURRENT_PENALTY_MS = data.penaltyHours * 60 * 60 * 1000;
+                }
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 3000);
             } catch (err) {
                 alert('Failed to save: ' + err.message);
             }
             btn.disabled = false;
-            btn.textContent = 'Save to Firestore';
+            btn.textContent = 'Save Config';
+        }
+
+        document.getElementById('btn-save-level')?.addEventListener('click', () => {
+            saveConfigHelper('btn-save-level', 'save-toast-level', () => ({
+                timeLimit: parseInt(document.getElementById('rng-timer').value),
+                maxMistakesLevel: parseInt(document.getElementById('rng-ml').value),
+                penaltyHours: parseInt(document.getElementById('rng-penalty').value)
+            }));
+        });
+
+        document.getElementById('btn-save-master')?.addEventListener('click', () => {
+            saveConfigHelper('btn-save-master', 'save-toast-master', () => ({
+                masterTimeLimit: parseInt(document.getElementById('rng-master-timer').value),
+                maxMistakesMaster: parseInt(document.getElementById('rng-mm').value),
+                masterPassPct: parseInt(document.getElementById('rng-master-pass').value)
+            }));
+        });
+
+        document.getElementById('btn-save-grand')?.addEventListener('click', () => {
+            const sum = currentGrandPct.reduce((a, b) => a + b, 0);
+            if (sum !== 100) {
+                alert(`Chapter distribution percentages must sum to 100%! Current sum: ${sum}%`);
+                return false;
+            }
+            saveConfigHelper('btn-save-grand', 'save-toast-grand', () => ({
+                grandEntryMessage: document.getElementById('txt-grand-msg').value.trim(),
+                grandTimeLimit: parseInt(document.getElementById('rng-grand-timer').value),
+                maxMistakesGrand: parseInt(document.getElementById('rng-mg').value),
+                grandPassPct: parseInt(document.getElementById('rng-grand-pass').value),
+                grandPct: currentGrandPct
+            }));
+        });
+
+        document.getElementById('btn-save-boss')?.addEventListener('click', () => {
+            saveConfigHelper('btn-save-boss', 'save-toast-boss', () => ({
+                bossEntryMessage: document.getElementById('txt-boss-msg').value.trim(),
+                bossQuestions: parseInt(document.getElementById('rng-boss-questions').value),
+                bossTimeLimit: parseInt(document.getElementById('rng-boss-timer').value),
+                bossMaxMistakes: parseInt(document.getElementById('rng-boss-mistakes').value),
+                bossPassPct: parseInt(document.getElementById('rng-boss-pass').value)
+            }));
         });
     </script>
 

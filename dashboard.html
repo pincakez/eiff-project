@@ -200,12 +200,35 @@
                     btn.setAttribute('aria-pressed', 'true');
                     activeChapter = c;
                     showChapterLevels(c);
-                    // Close hamburger menu on mobile after selection
                     document.getElementById('chap-nav').classList.remove('open');
                     document.getElementById('chap-hamburger').setAttribute('aria-expanded', 'false');
                     document.getElementById('chap-hamburger').classList.remove('is-open');
                 });
                 nav.appendChild(btn);
+            }
+
+            // Chapter X Pill (Only visible if unlockedChapter >= 11)
+            if (unlockedChapter >= 11) {
+                const btnX = document.createElement('button');
+                btnX.className = 'pill-btn pill-btn-chapx';
+                btnX.style.cssText = 'background: #1e293b; color: #ffffff; border: 1px solid #334155; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,0.5);';
+                btnX.textContent = '⭐ Chapter X';
+                btnX.id = `chap-btn-11`;
+                btnX.setAttribute('aria-pressed', 'false');
+                btnX.addEventListener('click', () => {
+                    document.querySelectorAll('.pill-btn').forEach(b => {
+                        b.classList.remove('active');
+                        b.setAttribute('aria-pressed', 'false');
+                    });
+                    btnX.classList.add('active');
+                    btnX.setAttribute('aria-pressed', 'true');
+                    activeChapter = 11;
+                    showChapterLevels(11);
+                    document.getElementById('chap-nav').classList.remove('open');
+                    document.getElementById('chap-hamburger').setAttribute('aria-expanded', 'false');
+                    document.getElementById('chap-hamburger').classList.remove('is-open');
+                });
+                nav.appendChild(btnX);
             }
 
             // Hamburger toggle logic
@@ -226,7 +249,73 @@
             container.innerHTML = '<div class="levels-grid" id="levels-grid"></div>';
             const grid = document.getElementById('levels-grid');
 
-            // ── 6 Level cards ──────────────────────────
+            // ── CHAPTER X VIEW (chapter === 11) ──────────────────────
+            if (chapter === 11) {
+                // Grand Quiz Card
+                const grandCard = document.createElement('div');
+                grandCard.className = `level-card grand-card`;
+                grandCard.setAttribute('role', 'button');
+                grandCard.setAttribute('tabindex', '0');
+                grandCard.setAttribute('aria-label', 'Grand Quiz — all chapters, 250 questions');
+                grandCard.innerHTML = `
+                    <div class="level-icon" aria-hidden="true">🌟</div>
+                    <div class="level-label" style="background: linear-gradient(135deg,#f59e0b,#ef4444,#3b82f6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent; font-size: 1.3rem;">GRAND QUIZ</div>
+                    <div class="level-range">All 10 Chapters · 250 Questions</div>
+                    <div class="master-hint" style="color:#f59e0b;">Master all chapters in one grand exam</div>
+                `;
+                grandCard.addEventListener('click', () => {
+                    window.location.href = `quiz.html?type=grand`;
+                });
+                grandCard.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') grandCard.click();
+                });
+                grid.appendChild(grandCard);
+
+                // THE FINAL BOSS Card
+                const hasPassedGrand = userData?.grandQuizPassed === true;
+                const bossCard = document.createElement('div');
+                bossCard.className = `level-card master-card${!hasPassedGrand ? ' locked' : ''}`;
+                bossCard.style.cssText = hasPassedGrand 
+                    ? 'background: linear-gradient(135deg, #1e1b4b, #0f172a); border: 2px solid #ef4444; box-shadow: 0 8px 25px rgba(239,68,68,0.25);'
+                    : 'background: #0f172a; border: 1px solid #334155;';
+                bossCard.setAttribute('role', 'button');
+                bossCard.setAttribute('tabindex', hasPassedGrand ? '0' : '-1');
+                bossCard.setAttribute('aria-label', 'THE FINAL BOSS');
+
+                bossCard.innerHTML = `
+                    ${!hasPassedGrand ? '<span class="lock-icon" aria-hidden="true">🔒</span>' : ''}
+                    <div class="level-icon" aria-hidden="true" style="font-size: 2.2rem;">👹</div>
+                    <div class="level-label" style="color: #ef4444; font-size: 1.3rem; text-shadow: 0 0 10px rgba(239,68,68,0.5);">THE FINAL BOSS</div>
+                    <div class="level-range" style="color: #94a3b8;">Randomized Master Quizzes</div>
+                    ${!hasPassedGrand
+                        ? `<div class="master-hint" style="color: #64748b;">Pass the Grand Quiz first</div>`
+                        : userData?.finalBossPassed
+                            ? `<div class="master-hint" style="color: #4ade80;">👑 DEFEATED — YOU ARE THE FINAL BOSS!</div>`
+                            : `<div class="master-hint" style="color: #f87171;">Only true masters dare enter</div>`}
+                `;
+
+                if (hasPassedGrand) {
+                    bossCard.addEventListener('click', () => {
+                        window.location.href = `quiz.html?type=boss`;
+                    });
+                    bossCard.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') bossCard.click();
+                    });
+                } else {
+                    bossCard.addEventListener('click', () => {
+                        showToast('🔒 Complete the Grand Quiz first to awaken THE FINAL BOSS!');
+                    });
+                }
+                grid.appendChild(bossCard);
+
+                // Animate cards
+                grid.querySelectorAll('.level-card').forEach((card, i) => {
+                    card.style.animationDelay = `${i * 0.05}s`;
+                });
+                return;
+            }
+
+            // ── REGULAR CHAPTER VIEW (chapters 1–10) ──────────────────
             for (let l = 1; l <= LEVELS_PER_CHAP; l++) {
                 const globalLevel = (chapter - 1) * LEVELS_PER_CHAP + l;
                 const wordStart = (globalLevel - 1) * WORDS_PER_LEVEL + 1;
@@ -265,10 +354,8 @@
             }
 
             // ── Master Quiz card ───────────────────────
-            // The master quiz for chapter N is unlocked once all 6 levels are done,
-            // i.e. unlockedLevel > chapter * 6  (the frontier has moved past level 6).
             const allLevelsDone = unlockedLevel > chapter * LEVELS_PER_CHAP;
-            const masterAlreadyPassed = unlockedChapter > chapter; // chapter unlocked means master was passed
+            const masterAlreadyPassed = unlockedChapter > chapter;
             const masterLocked = !allLevelsDone;
 
             const masterCard = document.createElement('div');
@@ -278,6 +365,8 @@
             masterCard.setAttribute('aria-label',
                 `Master Quiz for Chapter ${chapter}${masterLocked ? ' – locked until all 6 levels are done' : ''}`);
 
+            const unlockNextMsg = chapter === 10 ? '⭐ Chapter X unlocked!' : `Chapter ${chapter + 1} unlocked!`;
+
             masterCard.innerHTML = `
                 ${masterLocked ? '<span class="lock-icon" aria-hidden="true">🔒</span>' : ''}
                 <div class="level-icon master-icon" aria-hidden="true">${masterAlreadyPassed ? '🏅' : '🏆'}</div>
@@ -286,7 +375,7 @@
                 ${masterLocked
                     ? `<div class="master-hint">Finish all 6 levels first</div>`
                     : masterAlreadyPassed
-                        ? `<div class="master-hint master-passed">✅ Passed — Chapter ${chapter + 1} unlocked!</div>`
+                        ? `<div class="master-hint master-passed">✅ Passed — ${unlockNextMsg}</div>`
                         : `<div class="master-hint">48 / 50 required · 3 mistakes = out</div>`}
             `;
 
@@ -304,28 +393,6 @@
             }
 
             grid.appendChild(masterCard);
-
-            // ── Grand Quiz card (shown only when ALL 60 levels done) ────
-            if (unlockedLevel >= 60) {
-                const grandCard = document.createElement('div');
-                grandCard.className = `level-card grand-card`;
-                grandCard.setAttribute('role', 'button');
-                grandCard.setAttribute('tabindex', '0');
-                grandCard.setAttribute('aria-label', 'Grand Quiz — all chapters, 250 questions');
-                grandCard.innerHTML = `
-                    <div class="level-icon" aria-hidden="true">🌟</div>
-                    <div class="level-label" style="background: linear-gradient(135deg,#f59e0b,#ef4444,#3b82f6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">GRAND QUIZ</div>
-                    <div class="level-range">All 10 Chapters · 250 Questions</div>
-                    <div class="master-hint" style="color:#f59e0b;">240 / 250 required · No timer · No mistake limit</div>
-                `;
-                grandCard.addEventListener('click', () => {
-                    window.location.href = `quiz.html?type=grand`;
-                });
-                grandCard.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') grandCard.click();
-                });
-                grid.appendChild(grandCard);
-            }
 
             // Animate cards in
             grid.querySelectorAll('.level-card').forEach((card, i) => {

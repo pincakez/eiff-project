@@ -1,17 +1,33 @@
 import { vocabData } from './data-sector1A.js';
 import {
     auth, onAuthStateChanged, getUserData, unlockNextLevel, unlockNextChapter, eiffSignOut,
-    logQuizAttempt, checkLockout, clearLockout, logQuizResult, getGlobalConfig
+    logQuizAttempt, checkLockout, clearLockout, logQuizResult, getGlobalConfig,
+    setGrandQuizPassed, setFinalBossPassed
 } from './firebase-config.js';
 import { showToast } from './auth-ui.js';
 
 // ─── Config (defaults — overridden by Firestore config/quiz) ────
-const PASS_SCORE_LEVEL = 9 / 10;
-const PASS_SCORE_MASTER = 48 / 50;
-const PASS_SCORE_GRAND = 240 / 250;
-let TIME_LIMIT = 8;  // seconds per level-quiz question
-let MAX_MISTAKES_LEVEL = 2;  // mistakes before ejection (level)
-let MAX_MISTAKES_MASTER = 3;  // mistakes before ejection (master)
+let PASS_SCORE_LEVEL = 9 / 10;
+let PASS_SCORE_MASTER = 48 / 50;
+let PASS_SCORE_GRAND = 240 / 250;
+let PASS_SCORE_BOSS = 90 / 100;
+
+let TIME_LIMIT = 8;             // level quiz timer
+let MASTER_TIME_LIMIT = 0;      // master quiz timer (0 = off)
+let GRAND_TIME_LIMIT = 0;       // grand quiz timer (0 = off)
+let BOSS_TIME_LIMIT = 0;        // boss quiz timer (0 = off)
+
+let MAX_MISTAKES_LEVEL = 2;
+let MAX_MISTAKES_MASTER = 3;
+let MAX_MISTAKES_GRAND = 5;
+let MAX_MISTAKES_BOSS = 10;
+
+let BOSS_QUESTIONS = 100;
+
+let GRAND_ENTRY_MSG = "⚠️ WARNING: You are entering the GRAND QUIZ. 250 Questions across all 10 chapters. Stay focused!";
+let BOSS_ENTRY_MSG = "👹 THE FINAL BOSS HAS AWAKENED! Prepare to face questions from all master quizzes randomly. Prove your absolute mastery!";
+
+let GRAND_PCT = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]; // default 10% per chapter
 
 // ─── State ─────────────────────────────────
 let currentUser = null;
@@ -21,12 +37,13 @@ let qIndex = 0;
 let score = 0;
 let answered = false;
 let passesRemaining = 2;
-let wrongCount = 0;       // tracks mistakes for level quiz ejection
-let timerInterval = null; // reference to the countdown setInterval
+let wrongCount = 0;       // tracks mistakes for ejection
+let timerInterval = null; // reference to countdown setInterval
+let globalConfig = null;
 
 // ─── Parse URL ─────────────────────────────
 const params = new URLSearchParams(window.location.search);
-const type = params.get('type') || 'level'; // 'level', 'master', 'grand'
+const type = params.get('type') || 'level'; // 'level', 'master', 'grand', 'boss'
 const chapter = parseInt(params.get('chapter')) || 1;
 const level = parseInt(params.get('level')) || 1;
 const globalLevel = (chapter - 1) * 6 + level;
@@ -35,17 +52,37 @@ onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = 'index.html'; return; }
     currentUser = user;
 
-    // Load remote config (timer, mistake limits) — falls back to defaults
+    // Load remote config (timer, mistake limits, thresholds)
     try {
         const cfg = await getGlobalConfig();
+        globalConfig = cfg;
         if (cfg) {
             if (cfg.timeLimit != null) TIME_LIMIT = cfg.timeLimit;
+            if (cfg.masterTimeLimit != null) MASTER_TIME_LIMIT = cfg.masterTimeLimit;
+            if (cfg.grandTimeLimit != null) GRAND_TIME_LIMIT = cfg.grandTimeLimit;
+            if (cfg.bossTimeLimit != null) BOSS_TIME_LIMIT = cfg.bossTimeLimit;
+
             if (cfg.maxMistakesLevel != null) MAX_MISTAKES_LEVEL = cfg.maxMistakesLevel;
             if (cfg.maxMistakesMaster != null) MAX_MISTAKES_MASTER = cfg.maxMistakesMaster;
-        }
-    } catch (_) { /* use defaults if config unreadable */ }
+            if (cfg.maxMistakesGrand != null) MAX_MISTAKES_GRAND = cfg.maxMistakesGrand;
+            if (cfg.bossMaxMistakes != null) MAX_MISTAKES_BOSS = cfg.bossMaxMistakes;
 
-    // Safety Layer: Double check lockout here in case they bypassed the button
+            if (cfg.masterPassPct != null) PASS_SCORE_MASTER = cfg.masterPassPct / 100;
+            if (cfg.grandPassPct != null) PASS_SCORE_GRAND = cfg.grandPassPct / 100;
+            if (cfg.bossPassPct != null) PASS_SCORE_BOSS = cfg.bossPassPct / 100;
+
+            if (cfg.bossQuestions != null) BOSS_QUESTIONS = cfg.bossQuestions;
+
+            if (cfg.grandEntryMessage) GRAND_ENTRY_MSG = cfg.grandEntryMessage;
+            if (cfg.bossEntryMessage) BOSS_ENTRY_MSG = cfg.bossEntryMessage;
+
+            if (Array.isArray(cfg.grandPct) && cfg.grandPct.length === 10) {
+                GRAND_PCT = cfg.grandPct;
+            }
+        }
+    } catch (_) { /* use defaults */ }
+
+    // Double check lockout
     const lockout = await checkLockout(user.uid);
     if (lockout.isLocked) {
         alert('أنت محظور من الاختبارات لمدة 12 ساعة يا باشة.');
@@ -56,12 +93,45 @@ onAuthStateChanged(auth, async (user) => {
     // Start Lockout as soon as user lands here
     await logQuizAttempt(user.uid);
 
-    initQuiz();
+    // Show entry warning modal for Grand Quiz or Final Boss before starting
+    if (type === 'grand' || type === 'boss') {
+        showEntryModal(() => initQuiz());
+    } else {
+        initQuiz();
+    }
 });
+
+// ─── Entry Modal ───────────────────────────
+function showEntryModal(onConfirm) {
+    const isBoss = type === 'boss';
+    const title = isBoss ? '👹 THE FINAL BOSS' : '🌟 GRAND QUIZ';
+    const msg = isBoss ? BOSS_ENTRY_MSG : GRAND_ENTRY_MSG;
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal-box arabic-modal" style="max-width: 500px; text-align: center; ${isBoss ? 'background: #0f172a; color: #f87171; border: 2px solid #ef4444;' : 'background: #0f172a; color: #f8fafc; border: 2px solid #3b82f6;'}">
+            <div style="font-size: 3rem; margin-bottom: 10px;">${isBoss ? '👹' : '🌟'}</div>
+            <h2 style="font-size: 1.8rem; margin-bottom: 12px; color: ${isBoss ? '#ef4444' : '#60a5fa'};">${title}</h2>
+            <div style="font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px; color: #cbd5e1; white-space: pre-wrap;">${msg}</div>
+            <button class="btn-primary" id="btn-entry-start" style="padding: 14px 36px; font-size: 1.1rem; width: 100%; border-radius: 12px; background: ${isBoss ? 'linear-gradient(135deg,#dc2626,#991b1b)' : 'linear-gradient(135deg,#2563eb,#1d4ed8)'}">
+                ${isBoss ? '⚔️ ACCEPTS THE CHALLENGE' : '🚀 START GRAND QUIZ'}
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#btn-entry-start').onclick = () => {
+        modal.remove();
+        onConfirm();
+    };
+}
 
 // ─── Build Quiz ────────────────────────────
 function initQuiz() {
-    if (type === 'grand') {
+    if (type === 'boss') {
+        quizWords = buildBossQuizWords();
+    } else if (type === 'grand') {
         quizWords = buildGrandQuizWords();
     } else if (type === 'master') {
         quizWords = buildMasterQuizWords(chapter);
@@ -76,8 +146,10 @@ function initQuiz() {
     }
 
     document.title = `EiFF ${type.toUpperCase()} Quiz`;
-    // Add body class so CSS can theme the whole page for master
+
     if (type === 'master') document.body.classList.add('master-quiz-active');
+    if (type === 'boss') document.body.classList.add('master-quiz-active');
+
     showQuestion();
 }
 
@@ -88,38 +160,63 @@ function buildMasterQuizWords(ch) {
     }
     if (pool.length === 0) return [];
 
-    allWords = [...pool]; // full pool used for distractor generation
+    allWords = [...pool];
 
-    // Always produce exactly 50 questions.
-    // If pool < 50, cycle through shuffled copies until we reach 50.
     const TARGET = 50;
     let result = [];
     while (result.length < TARGET) {
         const needed = TARGET - result.length;
         result.push(...shuffle(pool).slice(0, needed));
     }
-    return result; // exactly 50 items
+    return result;
 }
 
 function buildGrandQuizWords() {
-    let ch1_3 = [], ch4_6 = [], ch7_10 = [];
+    let grandPool = [];
+    let fullAllWords = [];
+    const TOTAL_TARGET = 250;
 
     for (let c = 1; c <= 10; c++) {
+        let chPool = [];
         for (let l = 1; l <= 6; l++) {
-            const words = (vocabData[c] && vocabData[c][l]) ? vocabData[c][l] : [];
-            if (c <= 3) ch1_3.push(...words);
-            else if (c <= 6) ch4_6.push(...words);
-            else ch7_10.push(...words);
+            if (vocabData[c] && vocabData[c][l]) chPool.push(...vocabData[c][l]);
+        }
+        fullAllWords.push(...chPool);
+
+        // Allocate questions for chapter c based on GRAND_PCT array
+        const pct = GRAND_PCT[c - 1] ?? 10;
+        const count = Math.max(1, Math.round((pct / 100) * TOTAL_TARGET));
+
+        if (chPool.length > 0) {
+            let chResult = [];
+            while (chResult.length < count) {
+                const needed = count - chResult.length;
+                chResult.push(...shuffle(chPool).slice(0, needed));
+            }
+            grandPool.push(...chResult);
         }
     }
 
-    // Balanced selection: 25% (63), 25% (62), 50% (125) -> 250 total
-    const q1 = shuffle(ch1_3).slice(0, 63);
-    const q2 = shuffle(ch4_6).slice(0, 62);
-    const q3 = shuffle(ch7_10).slice(0, 125);
+    allWords = fullAllWords;
+    return shuffle(grandPool).slice(0, TOTAL_TARGET);
+}
 
-    allWords = [...ch1_3, ...ch4_6, ...ch7_10];
-    return shuffle([...q1, ...q2, ...q3]);
+function buildBossQuizWords() {
+    let fullPool = [];
+    for (let c = 1; c <= 10; c++) {
+        for (let l = 1; l <= 6; l++) {
+            if (vocabData[c] && vocabData[c][l]) fullPool.push(...vocabData[c][l]);
+        }
+    }
+    allWords = [...fullPool];
+
+    let result = [];
+    const TARGET = BOSS_QUESTIONS;
+    while (result.length < TARGET && fullPool.length > 0) {
+        const needed = TARGET - result.length;
+        result.push(...shuffle(fullPool).slice(0, needed));
+    }
+    return result;
 }
 
 // ─── Timer Helpers ─────────────────────────
@@ -130,23 +227,32 @@ function stopTimer() {
     }
 }
 
+function getActiveTimerSeconds() {
+    if (type === 'level') return TIME_LIMIT;
+    if (type === 'master') return MASTER_TIME_LIMIT;
+    if (type === 'grand') return GRAND_TIME_LIMIT;
+    if (type === 'boss') return BOSS_TIME_LIMIT;
+    return 0;
+}
+
 function startTimer(correctEn) {
     stopTimer();
-    let secondsLeft = TIME_LIMIT;
+    const limit = getActiveTimerSeconds();
+    if (limit <= 0) return;
+
+    let secondsLeft = limit;
     const timerBar = document.getElementById('timer-bar-fill');
     const timerText = document.getElementById('timer-text');
 
-    // Initialise bar
     if (timerBar) timerBar.style.width = '100%';
     if (timerText) timerText.textContent = secondsLeft;
 
     timerInterval = setInterval(() => {
         secondsLeft--;
-        const pct = (secondsLeft / TIME_LIMIT) * 100;
+        const pct = (secondsLeft / limit) * 100;
 
         if (timerBar) {
             timerBar.style.width = `${Math.max(0, pct)}%`;
-            // Colour shifts: green → yellow → red
             if (secondsLeft <= 2) timerBar.style.background = 'var(--g-red, #ef4444)';
             else if (secondsLeft <= 4) timerBar.style.background = '#f59e0b';
             else timerBar.style.background = 'var(--g-green, #22c55e)';
@@ -155,9 +261,7 @@ function startTimer(correctEn) {
 
         if (secondsLeft <= 0) {
             stopTimer();
-            // Time's up — treat as wrong answer
             if (!answered) {
-                // Find any answerbutton to pass as "wrong"
                 const anyBtn = document.querySelector('.quiz-choice:not([data-en="' + correctEn + '"])');
                 handleAnswer(anyBtn || document.querySelector('.quiz-choice'), correctEn, true);
             }
@@ -184,7 +288,7 @@ function showQuestion() {
     if (scoreBadge) scoreBadge.textContent = `Score: ${score}`;
     if (btnNext) btnNext.style.display = 'none';
 
-    // ── Choices: guarantee 4 fully-unique options (by english key) ──
+    // Choices: 4 unique options
     const usedKeys = new Set([word.en]);
     const candidatePool = shuffle(allWords.filter(w => w.en !== word.en));
     const distractors = [];
@@ -197,18 +301,22 @@ function showQuestion() {
     }
     const choices = shuffle([word, ...distractors]);
 
+    const timerSecs = getActiveTimerSeconds();
+    const isMasterOrBoss = (type === 'master' || type === 'boss' || type === 'grand');
+    const titleLabel = type === 'boss' ? '👹 THE FINAL BOSS — ' : type === 'grand' ? '🌟 GRAND QUIZ — ' : type === 'master' ? '🏆 MASTER QUIZ — ' : '';
+
     const area = document.getElementById('quiz-area');
     area.innerHTML = `
-        <div class="quiz-card${type === 'master' ? ' quiz-card--master' : ''}">
-            <div class="quiz-q-label">${type === 'master' ? '🏆 MASTER QUIZ — ' : ''}What is the Arabic meaning of…</div>
+        <div class="quiz-card${isMasterOrBoss ? ' quiz-card--master' : ''}">
+            <div class="quiz-q-label">${titleLabel}What is the Arabic meaning of…</div>
             <div class="quiz-question">${word.en}</div>
 
-            ${type === 'level' ? `
+            ${timerSecs > 0 ? `
             <div class="timer-wrapper">
                 <div class="timer-bar-track">
                     <div class="timer-bar-fill" id="timer-bar-fill"></div>
                 </div>
-                <span class="timer-text" id="timer-text">${TIME_LIMIT}</span>
+                <span class="timer-text" id="timer-text">${timerSecs}</span>
             </div>` : ''}
 
             <div class="quiz-choices">
@@ -235,8 +343,7 @@ function showQuestion() {
 
     document.getElementById('btn-pass-question')?.addEventListener('click', showPassModal);
 
-    // Start 8-second countdown only for level quizzes
-    if (type === 'level') startTimer(word.en);
+    if (timerSecs > 0) startTimer(word.en);
 }
 
 // ─── Handle Answer ─────────────────────────
@@ -263,16 +370,18 @@ function handleAnswer(selectedBtn, correctEn, timedOut = false) {
         feedbackEl.className = 'quiz-feedback wrong';
         feedbackEl.textContent = timedOut ? '⏰ Time\'s up!' : '❌ Incorrect!';
 
-        // ── Mistake ejection ──
-        if (type === 'level' || type === 'master') {
-            wrongCount++;
-            const limit = type === 'master' ? MAX_MISTAKES_MASTER : MAX_MISTAKES_LEVEL;
-            if (wrongCount >= limit) {
-                feedbackEl.style.display = 'block';
-                if (btnNext) btnNext.style.display = 'none';
-                setTimeout(() => showLooserModal(), 800);
-                return;
-            }
+        // Mistake ejection check for all quiz types
+        wrongCount++;
+        let limit = MAX_MISTAKES_LEVEL;
+        if (type === 'master') limit = MAX_MISTAKES_MASTER;
+        if (type === 'grand') limit = MAX_MISTAKES_GRAND;
+        if (type === 'boss') limit = MAX_MISTAKES_BOSS;
+
+        if (wrongCount >= limit) {
+            feedbackEl.style.display = 'block';
+            if (btnNext) btnNext.style.display = 'none';
+            setTimeout(() => showLooserModal(), 800);
+            return;
         }
     }
 
@@ -282,9 +391,14 @@ function handleAnswer(selectedBtn, correctEn, timedOut = false) {
 
 // ─── GET OUT LOOSER Modal ───────────────────
 function showLooserModal() {
-    const limit = type === 'master' ? MAX_MISTAKES_MASTER : MAX_MISTAKES_LEVEL;
+    let limit = MAX_MISTAKES_LEVEL;
+    if (type === 'master') limit = MAX_MISTAKES_MASTER;
+    if (type === 'grand') limit = MAX_MISTAKES_GRAND;
+    if (type === 'boss') limit = MAX_MISTAKES_BOSS;
+
     const mistakeText = limit === 1 ? 'غلطة واحدة' : limit === 2 ? 'غلطتين' : `${limit} غلطات`;
-    const quizTypeName = type === 'master' ? 'ماستر كويز' : 'الاختبار';
+    const quizTypeName = type === 'boss' ? 'THE FINAL BOSS' : type === 'grand' ? 'جراند كويز' : type === 'master' ? 'ماستر كويز' : 'الاختبار';
+    
     const modal = document.createElement('div');
     modal.className = 'modal-overlay active';
     modal.innerHTML = `
@@ -298,8 +412,11 @@ function showLooserModal() {
     document.body.appendChild(modal);
 
     modal.querySelector('#btn-looser-confirm').onclick = () => {
-        // Redirect back to the quiz page for this same level (they can't enter — lockout is active)
-        window.location.href = `study.html?chapter=${chapter}&level=${level}`;
+        if (type === 'grand' || type === 'boss') {
+            window.location.href = `dashboard.html?chapter=11`;
+        } else {
+            window.location.href = `study.html?chapter=${chapter}&level=${level}`;
+        }
     };
 }
 
@@ -321,7 +438,7 @@ function showPassModal() {
 
     modal.querySelector('#btn-confirm-pass').onclick = () => {
         passesRemaining--;
-        qIndex = Math.max(0, qIndex - 2); // Penalty
+        qIndex = Math.max(0, qIndex - 2);
         const newWord = shuffle(allWords)[0];
         quizWords[qIndex] = newWord;
 
@@ -341,10 +458,11 @@ async function showResults() {
     let passThreshold = PASS_SCORE_LEVEL;
     if (type === 'master') passThreshold = PASS_SCORE_MASTER;
     if (type === 'grand') passThreshold = PASS_SCORE_GRAND;
+    if (type === 'boss') passThreshold = PASS_SCORE_BOSS;
 
     const passed = pct >= passThreshold;
 
-    // Clear lockout immediately on pass
+    // Clear lockout on pass
     if (passed && currentUser) {
         await clearLockout(currentUser.uid);
     }
@@ -360,7 +478,17 @@ async function showResults() {
         chapterUnlocked = await unlockNextChapter(currentUser.uid, chapter);
     }
 
-    // Log this quiz result for admin stats
+    // Grand quiz pass: record in Firestore
+    if (passed && type === 'grand' && currentUser) {
+        await setGrandQuizPassed(currentUser.uid);
+    }
+
+    // Final boss pass: record in Firestore
+    if (passed && type === 'boss' && currentUser) {
+        await setFinalBossPassed(currentUser.uid);
+    }
+
+    // Log attempt
     if (currentUser) {
         try {
             await logQuizResult(currentUser.uid, {
@@ -370,29 +498,32 @@ async function showResults() {
         } catch (_) { /* non-critical */ }
     }
 
-    // Determine where the button goes — smart context-aware navigation
+    // Smart context-aware navigation button
     let btnText = `← Back to Chapter ${chapter}`;
     let btnUrl  = `dashboard.html?chapter=${chapter}`;
 
     if (passed && type === 'level' && level === 6) {
-        // Finished last level — go take the Master Quiz
         btnText = '🏆 Take Master Quiz';
         btnUrl  = `quiz.html?type=master&chapter=${chapter}`;
     } else if (passed && type === 'master' && chapterUnlocked) {
-        // Master quiz passed and a new chapter was unlocked
         const nextCh = chapter + 1;
-        btnText = `Go to Chapter ${nextCh} →`;
-        btnUrl  = `dashboard.html?chapter=${nextCh}`;
-    } else if (type === 'grand') {
-        btnText = '🏠 Back to Dashboard';
-        btnUrl  = 'dashboard.html';
+        if (nextCh === 11) {
+            btnText = '⭐ Go to Chapter X →';
+            btnUrl  = `dashboard.html?chapter=11`;
+        } else {
+            btnText = `Go to Chapter ${nextCh} →`;
+            btnUrl  = `dashboard.html?chapter=${nextCh}`;
+        }
+    } else if (type === 'grand' || type === 'boss') {
+        btnText = '⭐ Back to Chapter X';
+        btnUrl  = 'dashboard.html?chapter=11';
     }
 
-    // Hide the bottom "Next" button immediately
+    // Hide bottom "Next" button
     const nav = document.querySelector('.quiz-nav');
     if (nav) nav.style.display = 'none';
 
-    // Show Fireworks!
+    // Fireworks on pass
     if (passed && typeof confetti === 'function') {
         const duration = 3000;
         const end = Date.now() + duration;
@@ -420,18 +551,26 @@ async function showResults() {
     }
 
     const area = document.getElementById('quiz-area');
-    const resultClass = type === 'master' ? 'quiz-result-card quiz-result-card--master' : 'quiz-result-card';
+    const isDarkResult = (type === 'master' || type === 'grand' || type === 'boss');
+    const resultClass = isDarkResult ? 'quiz-result-card quiz-result-card--master' : 'quiz-result-card';
+
+    let passHeading = '🎉 You Passed!';
+    if (passed && type === 'boss') passHeading = '🏆 YOU ARE THE FINAL BOSS!';
+    else if (passed && type === 'grand') passHeading = '🌟 GRAND QUIZ CONQUERED!';
 
     area.innerHTML = `
         <div class="${resultClass}">
-            <h2>${passed ? '🎉 You Passed!' : '😬 Failed'}</h2>
+            <h2>${passed ? passHeading : '😬 Failed'}</h2>
             <div class="result-score-big">${Math.round(pct * 100)}%</div>
             <p>You got ${score} out of ${total} correct.</p>
             ${passed && type === 'level' && level === 6
             ? `<p class="master-unlock-msg">🏆 All 6 levels complete! Master Quiz unlocked.</p>`
             : ''}
             ${chapterUnlocked
-            ? `<p class="chapter-unlock-msg">🔓 Chapter ${chapter + 1} is now unlocked!</p>`
+            ? `<p class="chapter-unlock-msg">🔓 ${chapter === 10 ? 'Chapter X' : 'Chapter ' + (chapter + 1)} is now unlocked!</p>`
+            : ''}
+            ${passed && type === 'grand'
+            ? `<p class="chapter-unlock-msg" style="background: linear-gradient(135deg,#f59e0b,#ef4444); color: #fff;">👹 THE FINAL BOSS HAS BEEN UNLOCKED IN CHAPTER X!</p>`
             : ''}
             <button class="btn-primary" id="btn-quiz-done" style="margin-top: 15px; padding: 14px 40px; font-size: 1.1rem; border-radius: 50px;">
                 ${btnText}
@@ -463,3 +602,4 @@ document.getElementById('btn-next')?.addEventListener('click', () => {
     qIndex++;
     showQuestion();
 });
+

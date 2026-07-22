@@ -104,7 +104,7 @@ async function unlockNextLevel(uid, currentLevel) {
     const data = await getUserData(uid);
     if (!data) return false;
     const next = currentLevel + 1;
-    if (data.unlockedLevel === currentLevel && next <= 60) {
+    if (data.unlockedLevel === currentLevel && next <= 61) {
         await updateDoc(doc(db, "users", uid), { unlockedLevel: next, lastSeen: serverTimestamp() });
         return true;
     }
@@ -115,11 +115,19 @@ async function unlockNextChapter(uid, currentChapter) {
     const data = await getUserData(uid);
     if (!data) return false;
     const next = currentChapter + 1;
-    if (currentChapter >= (data.unlockedChapter ?? 1) && next <= 10) {
+    if (currentChapter >= (data.unlockedChapter ?? 1) && next <= 11) {
         await updateDoc(doc(db, "users", uid), { unlockedChapter: next, lastSeen: serverTimestamp() });
         return true;
     }
     return false;
+}
+
+async function setGrandQuizPassed(uid) {
+    await updateDoc(doc(db, "users", uid), { grandQuizPassed: true, lastSeen: serverTimestamp() });
+}
+
+async function setFinalBossPassed(uid) {
+    await updateDoc(doc(db, "users", uid), { finalBossPassed: true, lastSeen: serverTimestamp() });
 }
 
 // Admin: force-set level or chapter for a user
@@ -226,5 +234,6 @@ export {
     logQuizResult, getUserAttempts,
     getGlobalConfig, setGlobalConfig,
     sendUserMessage, markMessageRead,
-    setInsiderFlag
+    setInsiderFlag,
+    setGrandQuizPassed, setFinalBossPassed
 };
