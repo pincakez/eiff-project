@@ -1116,14 +1116,26 @@
                 <!-- ── Level Quiz Config page ─────────────── -->
                 <div class="page" id="page-level">
                     <div class="settings-card">
+                        <div class="settings-title">🔢 Questions per Level Quiz</div>
+                        <div class="settings-sub">How many questions a Level Quiz asks (each level has 50 words). Pass = 90% of them.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Questions</span>
+                                <span class="setting-val" id="lbl-level-q">10</span>
+                            </div>
+                            <input type="range" id="rng-level-q" min="5" max="50" value="10">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
                         <div class="settings-title">⏱️ Level Quiz Timer</div>
-                        <div class="settings-sub">Seconds allowed per question in Level Quizzes.</div>
+                        <div class="settings-sub">Seconds allowed per question in Level Quizzes (0 = no timer).</div>
                         <div class="setting-row">
                             <div class="setting-label">
                                 <span class="setting-name">Time Limit</span>
                                 <span class="setting-val" id="lbl-timer">8s</span>
                             </div>
-                            <input type="range" id="rng-timer" min="2" max="20" value="8">
+                            <input type="range" id="rng-timer" min="0" max="20" value="8">
                         </div>
                     </div>
 
@@ -1153,6 +1165,27 @@
 
                     <button class="btn-save" id="btn-save-level">Save Level Quiz Config</button>
                     <span class="save-toast" id="save-toast-level">✅ Saved!</span>
+
+                    <div class="settings-card" style="margin-top:28px">
+                        <div class="settings-title">🛒 Streak Store (all quizzes)</div>
+                        <div class="settings-sub">A correct answer in under 2 seconds = a speed streak. Each fast answer earns 1 point (2 points from a 5-streak). Students spend points on extra lives: a life is used by itself when a mistake would throw them out.</div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Price of 1 extra life (points)</span>
+                                <span class="setting-val" id="lbl-life-price">10</span>
+                            </div>
+                            <input type="range" id="rng-life-price" min="1" max="100" value="10">
+                        </div>
+                        <div class="setting-row">
+                            <div class="setting-label">
+                                <span class="setting-name">Most lives a student can hold</span>
+                                <span class="setting-val" id="lbl-max-lives">3</span>
+                            </div>
+                            <input type="range" id="rng-max-lives" min="0" max="10" value="3">
+                        </div>
+                    </div>
+                    <button class="btn-save" id="btn-save-store">Save Store Config</button>
+                    <span class="save-toast" id="save-toast-store">✅ Saved!</span>
                 </div>
 
                 <!-- ── Master Quiz Config page ─────────────── -->
@@ -1191,6 +1224,12 @@
                             </div>
                             <input type="range" id="rng-master-pass" min="50" max="100" value="96">
                         </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="settings-title">💬 Entry Warning Message</div>
+                        <div class="settings-sub">Message shown in a popup before a student begins a Master Quiz.</div>
+                        <textarea id="txt-master-msg" maxlength="600" style="width:100%; height:80px; background:var(--navy3); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px; font-family:'Inter',sans-serif; margin-top:10px; outline:none;" placeholder="Enter Master Quiz warning message...">🏆 MASTER QUIZ: 50 questions from the whole chapter. Pass it to unlock the next chapter. Focus!</textarea>
                     </div>
 
                     <button class="btn-save" id="btn-save-master">Save Master Quiz Config</button>
@@ -1512,6 +1551,7 @@
         }
 
         // The lock length the admin set (Level Quiz page), e.g. «12h»
+        const MASTER_MSG_DEFAULT = "🏆 MASTER QUIZ: 50 questions from the whole chapter. Pass it to unlock the next chapter. Focus!";
         function penaltyLabel() { return `${Math.round(CURRENT_PENALTY_MS / 3600000 * 10) / 10}h`; }
 
         function levelToChapLv(gl) {
@@ -2222,7 +2262,10 @@
                     const ph = cfg.penaltyHours ?? 12;
 
                     document.getElementById('rng-timer').value = t;
-                    document.getElementById('lbl-timer').textContent = `${t}s`;
+                    document.getElementById('lbl-timer').textContent = t === 0 ? 'Off' : `${t}s`;
+                    const lq = cfg.levelQuestions ?? 10;
+                    document.getElementById('rng-level-q').value = lq;
+                    document.getElementById('lbl-level-q').textContent = lq;
                     document.getElementById('rng-ml').value = ml;
                     document.getElementById('lbl-ml').textContent = ml;
                     document.getElementById('rng-penalty').value = ph;
@@ -2232,6 +2275,12 @@
                     const mt = cfg.masterTimeLimit ?? 0;
                     const mm = cfg.maxMistakesMaster ?? 3;
                     const mp = cfg.masterPassPct ?? 96;
+                    document.getElementById('txt-master-msg').value = cfg.masterEntryMessage ?? MASTER_MSG_DEFAULT;
+                    const lp = cfg.lifePrice ?? 10, mxl = cfg.maxLives ?? 3;
+                    document.getElementById('rng-life-price').value = lp;
+                    document.getElementById('lbl-life-price').textContent = lp;
+                    document.getElementById('rng-max-lives').value = mxl;
+                    document.getElementById('lbl-max-lives').textContent = mxl;
 
                     document.getElementById('rng-master-timer').value = mt;
                     document.getElementById('lbl-master-timer').textContent = mt === 0 ? 'Off' : `${mt}s`;
@@ -2327,7 +2376,10 @@
 
         // Live input listeners for Level Quiz
         document.getElementById('rng-timer')?.addEventListener('input', e => {
-            document.getElementById('lbl-timer').textContent = `${e.target.value}s`;
+            document.getElementById('lbl-timer').textContent = e.target.value === '0' ? 'Off' : `${e.target.value}s`;
+        });
+        document.getElementById('rng-level-q')?.addEventListener('input', e => {
+            document.getElementById('lbl-level-q').textContent = e.target.value;
         });
         document.getElementById('rng-ml')?.addEventListener('input', e => {
             document.getElementById('lbl-ml').textContent = e.target.value;
@@ -2401,6 +2453,7 @@
         document.getElementById('btn-save-level')?.addEventListener('click', () => {
             saveConfigHelper('btn-save-level', 'save-toast-level', () => ({
                 timeLimit: parseInt(document.getElementById('rng-timer').value),
+                levelQuestions: parseInt(document.getElementById('rng-level-q').value),
                 maxMistakesLevel: parseInt(document.getElementById('rng-ml').value),
                 penaltyHours: parseInt(document.getElementById('rng-penalty').value)
             }));
@@ -2410,9 +2463,19 @@
             saveConfigHelper('btn-save-master', 'save-toast-master', () => ({
                 masterTimeLimit: parseInt(document.getElementById('rng-master-timer').value),
                 maxMistakesMaster: parseInt(document.getElementById('rng-mm').value),
-                masterPassPct: parseInt(document.getElementById('rng-master-pass').value)
+                masterPassPct: parseInt(document.getElementById('rng-master-pass').value),
+                masterEntryMessage: document.getElementById('txt-master-msg').value.trim()
             }));
         });
+
+        document.getElementById('btn-save-store')?.addEventListener('click', () => {
+            saveConfigHelper('btn-save-store', 'save-toast-store', () => ({
+                lifePrice: parseInt(document.getElementById('rng-life-price').value),
+                maxLives: parseInt(document.getElementById('rng-max-lives').value)
+            }));
+        });
+        document.getElementById('rng-life-price').oninput = e => document.getElementById('lbl-life-price').textContent = e.target.value;
+        document.getElementById('rng-max-lives').oninput = e => document.getElementById('lbl-max-lives').textContent = e.target.value;
 
         document.getElementById('btn-save-grand')?.addEventListener('click', () => {
             const sum = currentGrandPct.reduce((a, b) => a + b, 0);

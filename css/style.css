@@ -2195,3 +2195,216 @@ body.master-quiz-active .quiz-score-badge {
     flex-wrap: wrap;
   }
 }
+
+/* =============================================
+   GAME FEEL (2026-11-14): countdown, damage, speed streaks, store
+   ============================================= */
+.fx-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+}
+
+.fx-red {
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.35) 0%, rgba(220, 38, 38, 0.75) 100%);
+  animation: fxFade 0.55s ease-out forwards;
+}
+
+.fx-green {
+  background: radial-gradient(circle, rgba(52, 168, 83, 0.05) 30%, rgba(52, 168, 83, 0.55) 100%);
+  animation: fxFade 0.55s ease-out forwards;
+}
+
+.fx-greenblue {
+  background: radial-gradient(circle, rgba(66, 133, 244, 0.1) 25%, rgba(52, 168, 83, 0.5) 70%, rgba(66, 133, 244, 0.65) 100%);
+  animation: fxFade 0.65s ease-out forwards;
+}
+
+@keyframes fxFade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.fx-shake {
+  animation: fxShake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes fxShake {
+  10%, 90% { transform: translate3d(-2px, 0, 0); }
+  20%, 80% { transform: translate3d(5px, 1px, 0); }
+  30%, 50%, 70% { transform: translate3d(-9px, -1px, 0); }
+  40%, 60% { transform: translate3d(9px, 1px, 0); }
+}
+
+/* the glow stays while the streak lasts */
+body.streak-hot {
+  box-shadow: inset 0 0 90px rgba(52, 168, 83, 0.45);
+}
+
+body.streak-fire {
+  animation: fxFire 1.6s ease-in-out infinite;
+}
+
+@keyframes fxFire {
+  0%, 100% { box-shadow: inset 0 0 110px rgba(52, 168, 83, 0.55); }
+  50% { box-shadow: inset 0 0 130px rgba(66, 133, 244, 0.6); }
+}
+
+.quiz-streak-badge {
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--g-green);
+  margin-right: 8px;
+  padding: 4px 10px;
+  border-radius: 50px;
+  background: rgba(52, 168, 83, 0.1);
+}
+
+.quiz-streak-badge.hot {
+  color: #fff;
+  background: linear-gradient(135deg, var(--g-green), var(--g-blue));
+}
+
+.quiz-streak-badge[hidden] {
+  display: none;
+}
+
+.streak-earned {
+  font-weight: 700;
+  color: var(--g-green);
+}
+
+/* the 5-second countdown */
+.fx-count-box {
+  max-width: 420px;
+  text-align: center;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 2px solid var(--g-blue);
+}
+
+.fx-count-title {
+  font-size: 1.3rem;
+  font-weight: 900;
+  margin-bottom: 18px;
+  color: #60a5fa;
+}
+
+.fx-rule {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+
+.fx-rule b {
+  font-size: 1.3rem;
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
+.fx-hint {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin: 10px 0 4px;
+}
+
+.fx-count-num {
+  font-size: 4.5rem;
+  font-weight: 900;
+  line-height: 1.1;
+  margin: 8px 0 14px;
+  background: linear-gradient(135deg, var(--g-green), var(--g-blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.fx-count-num.pop {
+  animation: fxPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fxPop {
+  from { transform: scale(1.6); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.fx-count-go {
+  width: 100%;
+}
+
+/* the store on the dashboard */
+.store-card {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  max-width: 1052px;
+  margin: 0 auto 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(52, 168, 83, 0.08), rgba(66, 133, 244, 0.08));
+  border: 1px solid rgba(66, 133, 244, 0.25);
+}
+
+.store-card[hidden] {
+  display: none;
+}
+
+.store-title {
+  font-weight: 800;
+  color: var(--text);
+  flex: 1 1 100%;
+}
+
+.store-stat {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.store-stat small {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.store-buy {
+  margin-left: auto;
+  padding: 10px 18px;
+  border-radius: 50px;
+  border: none;
+  font-weight: 800;
+  font-family: "Inter", sans-serif;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--g-green), var(--g-blue));
+}
+
+.store-buy:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.store-msg {
+  flex: 1 1 100%;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-red, .fx-green, .fx-greenblue { animation-duration: 0.2s; }
+  body.streak-fire { animation: none; box-shadow: inset 0 0 110px rgba(52, 168, 83, 0.5); }
+}

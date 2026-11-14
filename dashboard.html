@@ -61,6 +61,15 @@
             </div>
         </div>
 
+        <!-- Streak store: spend speed-streak points on extra lives -->
+        <div class="store-card" id="store-card" hidden>
+            <div class="store-title">🛒 Streak Store <span style="font-weight:500;color:var(--text-2);font-size:0.85rem">· answer right in under 2 seconds to earn points</span></div>
+            <div class="store-stat"><span id="store-points">0</span><small>⚡ streak points</small></div>
+            <div class="store-stat"><span id="store-lives">0</span><small>❤️ extra lives</small></div>
+            <button type="button" class="store-buy" id="store-buy">Buy 1 life</button>
+            <div class="store-msg" id="store-msg">An extra life saves you once when a mistake would throw you out of a quiz.</div>
+        </div>
+
         <!-- Level Grid -->
         <section id="levels-container" aria-label="Study levels">
             <div class="loading-spinner" role="status">
@@ -87,9 +96,10 @@
 
         // Database text is shown as TEXT, never as page code (a name like <img onerror=…> must not run).
         const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        import { auth, onAuthStateChanged, getUserData, eiffSignOut, markMessageRead, getGlobalConfig, hasGoogle, linkGoogle } from './js/firebase-config.js';
+        import { auth, onAuthStateChanged, getUserData, eiffSignOut, markMessageRead, getGlobalConfig, hasGoogle, linkGoogle, buyLife } from './js/firebase-config.js';
         // The Master card shows the admin's real rules (default 96% of 50 = 48, 3 mistakes)
         let MASTER_NEED = 48, MASTER_MISTAKES = 3;
+        let LIFE_PRICE = 10, MAX_LIVES = 3;
 
         import { showToast } from './js/auth-ui.js';
 
@@ -114,10 +124,13 @@
                 const cfg = await getGlobalConfig(); // read after sign-in (the rules need it)
                 if (cfg?.masterPassPct != null) MASTER_NEED = Math.ceil(50 * cfg.masterPassPct / 100);
                 if (cfg?.maxMistakesMaster != null) MASTER_MISTAKES = cfg.maxMistakesMaster;
+                if (cfg?.lifePrice != null) LIFE_PRICE = cfg.lifePrice;
+                if (cfg?.maxLives != null) MAX_LIVES = cfg.maxLives;
             } catch (_) { }
             userData = await getUserData(user.uid);
             if (!userData || userData.paused === true) { await eiffSignOut(); window.location.href = 'index.html'; return; } // removed or paused
             setupLinkGoogle(user);
+            setupStore(user);
 
             // Populate user badge
             const name = userData?.displayName || user.email.split('@')[0];
@@ -193,6 +206,35 @@
             const activePill = document.getElementById(`chap-btn-${safeStartCh}`);
             if (activePill) activePill.classList.add('active');
         });
+
+        // ─── Streak Store ───────────────────────────
+        function setupStore(user) {
+            const card = document.getElementById('store-card');
+            if (MAX_LIVES <= 0) return;   // the admin turned the store off (max lives 0)
+            card.hidden = false;
+            let points = userData.streakPoints ?? 0, lives = userData.extraLives ?? 0;
+            const btn = document.getElementById('store-buy'), msg = document.getElementById('store-msg');
+            const draw = () => {
+                document.getElementById('store-points').textContent = points;
+                document.getElementById('store-lives').textContent = `${lives} / ${MAX_LIVES}`;
+                btn.textContent = `Buy 1 life · ${LIFE_PRICE} pts`;
+                btn.disabled = points < LIFE_PRICE || lives >= MAX_LIVES;
+            };
+            draw();
+            btn.onclick = async () => {
+                btn.disabled = true;
+                try {
+                    const r = await buyLife(user.uid, LIFE_PRICE, MAX_LIVES);
+                    points = r.points; lives = r.lives;
+                    msg.textContent = '❤️ Life bought! It saves you once in your next quizzes.';
+                    showToast('❤️ +1 extra life');
+                } catch (err) {
+                    msg.textContent = err?.code === 'eiff/max-lives' ? `You already hold the most lives (${MAX_LIVES}).`
+                        : err?.code === 'eiff/no-points' ? 'Not enough points yet. Be fast!' : 'Could not buy. Check your connection.';
+                }
+                draw();
+            };
+        }
 
         // ─── Connect Google ─────────────────────────
         // Shown only to a student without Google. «Not now» hides it for 30 days on this device.

@@ -2,9 +2,10 @@ import { vocabData } from './data-sector1A.js';
 import {
     auth, onAuthStateChanged, getUserData, unlockNextLevel, unlockNextChapter, eiffSignOut,
     logQuizAttempt, checkLockout, clearLockout, logQuizResult, getGlobalConfig,
-    setGrandQuizPassed, setFinalBossPassed
+    setGrandQuizPassed, setFinalBossPassed, addStreakPoints, useExtraLife
 } from './firebase-config.js';
 import { showToast } from './auth-ui.js';
+import { playHit, playStreak, playCoins, playLife, damage, streakLook, countdown } from './game.js';
 
 // ─── Config (defaults — overridden by Firestore config/quiz) ────
 let PASS_SCORE_LEVEL = 9 / 10;
@@ -24,6 +25,8 @@ let MAX_MISTAKES_BOSS = 10;
 
 let BOSS_QUESTIONS = 100;
 
+let LEVEL_QUESTIONS = 10;       // questions in a Level Quiz (admin: Level Quiz page)
+let MASTER_ENTRY_MSG = "🏆 MASTER QUIZ: 50 questions from the whole chapter. Pass it to unlock the next chapter. Focus!";
 let GRAND_ENTRY_MSG = "⚠️ WARNING: You are entering the GRAND QUIZ. 250 Questions across all 10 chapters. Stay focused!";
 let BOSS_ENTRY_MSG = "👹 THE FINAL BOSS HAS AWAKENED! Prepare to face questions from all master quizzes randomly. Prove your absolute mastery!";
 
@@ -41,6 +44,14 @@ let wrongCount = 0;       // tracks mistakes for ejection
 let outcome = [];         // per question: 'right' | 'wrong' — so a Skip can take its points back
 let timerInterval = null; // reference to countdown setInterval
 let globalConfig = null;
+
+// Speed streaks + extra lives
+const FAST_MS = 2000;     // a right answer faster than this = a speed streak
+let qShownAt = 0;
+let streak = 0;
+let earnedPoints = 0;
+let extraLives = 0;
+let pointsSaved = false;
 
 // ─── Parse URL ─────────────────────────────
 const params = new URLSearchParams(window.location.search);
@@ -73,6 +84,8 @@ onAuthStateChanged(auth, async (user) => {
             if (cfg.bossPassPct != null) PASS_SCORE_BOSS = cfg.bossPassPct / 100;
 
             if (cfg.bossQuestions != null) BOSS_QUESTIONS = cfg.bossQuestions;
+            if (cfg.levelQuestions != null) LEVEL_QUESTIONS = cfg.levelQuestions;
+            if (cfg.masterEntryMessage) MASTER_ENTRY_MSG = cfg.masterEntryMessage;
 
             if (cfg.grandEntryMessage) GRAND_ENTRY_MSG = cfg.grandEntryMessage;
             if (cfg.bossEntryMessage) BOSS_ENTRY_MSG = cfg.bossEntryMessage;
@@ -87,6 +100,7 @@ onAuthStateChanged(auth, async (user) => {
     // Only a quiz the student has really unlocked opens (a typed address never skips ahead)
     const me = await getUserData(user.uid);
     if (!me || me.paused === true) { await eiffSignOut(); window.location.href = 'index.html'; return; }
+    extraLives = Math.max(0, me.extraLives ?? 0);
     if (!quizIsOpenFor(me)) {
         alert('الاختبار ده لسه مقفول. كمّل اللي قبله الأول.');
         window.location.href = `dashboard.html?chapter=${Math.min(chapter, me.unlockedChapter ?? 1)}`;
@@ -104,11 +118,18 @@ onAuthStateChanged(auth, async (user) => {
     // Start Lockout as soon as user lands here
     await logQuizAttempt(user.uid);
 
-    // Show entry warning modal for Grand Quiz or Final Boss before starting
-    if (type === 'grand' || type === 'boss') {
-        showEntryModal(() => initQuiz());
+    // Master / Grand / Boss: their warning message first. Then, for every quiz, the 5-second countdown
+    // with this quiz's real rules (the admin's mistakes and timer).
+    const startCountdown = () => countdown({
+        title: type === 'boss' ? '👹 THE FINAL BOSS' : type === 'grand' ? '🌟 GRAND QUIZ' : type === 'master' ? '🏆 MASTER QUIZ' : `📝 LEVEL QUIZ · Ch.${chapter} Lv.${level}`,
+        mistakes: mistakeLimit(),
+        extraLives,
+        seconds: getActiveTimerSeconds(),
+    }, () => initQuiz());
+    if (type === 'grand' || type === 'boss' || type === 'master') {
+        showEntryModal(startCountdown);
     } else {
-        initQuiz();
+        startCountdown();
     }
     } catch (err) {
         console.error(err);
@@ -128,21 +149,30 @@ function quizIsOpenFor(me) {
     return false;
 }
 
+function mistakeLimit() {
+    if (type === 'master') return MAX_MISTAKES_MASTER;
+    if (type === 'grand') return MAX_MISTAKES_GRAND;
+    if (type === 'boss') return MAX_MISTAKES_BOSS;
+    return MAX_MISTAKES_LEVEL;
+}
+
 // ─── Entry Modal ───────────────────────────
 function showEntryModal(onConfirm) {
     const isBoss = type === 'boss';
-    const title = isBoss ? '👹 THE FINAL BOSS' : '🌟 GRAND QUIZ';
-    const msg = isBoss ? BOSS_ENTRY_MSG : GRAND_ENTRY_MSG;
+    const isMaster = type === 'master';
+    const title = isBoss ? '👹 THE FINAL BOSS' : isMaster ? `🏆 MASTER QUIZ · Chapter ${chapter}` : '🌟 GRAND QUIZ';
+    const rawMsg = isBoss ? BOSS_ENTRY_MSG : isMaster ? MASTER_ENTRY_MSG : GRAND_ENTRY_MSG;
+    const msg = String(rawMsg).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     
     const modal = document.createElement('div');
     modal.className = 'modal-overlay active';
     modal.innerHTML = `
         <div class="modal-box arabic-modal" style="max-width: 500px; text-align: center; ${isBoss ? 'background: #0f172a; color: #f87171; border: 2px solid #ef4444;' : 'background: #0f172a; color: #f8fafc; border: 2px solid #3b82f6;'}">
-            <div style="font-size: 3rem; margin-bottom: 10px;">${isBoss ? '👹' : '🌟'}</div>
+            <div style="font-size: 3rem; margin-bottom: 10px;">${isBoss ? '👹' : isMaster ? '🏆' : '🌟'}</div>
             <h2 style="font-size: 1.8rem; margin-bottom: 12px; color: ${isBoss ? '#ef4444' : '#60a5fa'};">${title}</h2>
             <div style="font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px; color: #cbd5e1; white-space: pre-wrap;">${msg}</div>
             <button class="btn-primary" id="btn-entry-start" style="padding: 14px 36px; font-size: 1.1rem; width: 100%; border-radius: 12px; background: ${isBoss ? 'linear-gradient(135deg,#dc2626,#991b1b)' : 'linear-gradient(135deg,#2563eb,#1d4ed8)'}">
-                ${isBoss ? '⚔️ ACCEPTS THE CHALLENGE' : '🚀 START GRAND QUIZ'}
+                ${isBoss ? '⚔️ ACCEPTS THE CHALLENGE' : isMaster ? '🚀 START MASTER QUIZ' : '🚀 START GRAND QUIZ'}
             </button>
         </div>
     `;
@@ -164,12 +194,12 @@ function initQuiz() {
         quizWords = buildMasterQuizWords(chapter);
     } else {
         const levelWords = (vocabData[chapter] && vocabData[chapter][level]) ? vocabData[chapter][level] : [];
-        if (levelWords.length < 10) {
+        if (levelWords.length < 4) {
             renderMissingData();
             return;
         }
         allWords = [...levelWords];
-        quizWords = shuffle(levelWords).slice(0, 10);
+        quizWords = shuffle(levelWords).slice(0, Math.min(LEVEL_QUESTIONS, levelWords.length));
     }
 
     document.title = `EiFF ${type.toUpperCase()} Quiz`;
@@ -375,6 +405,8 @@ function showQuestion() {
     });
 
     document.getElementById('btn-pass-question')?.addEventListener('click', showPassModal);
+    qShownAt = performance.now();
+    showStreakBadge();
 
     if (timerSecs > 0) startTimer(word.en);
 }
@@ -396,6 +428,18 @@ function handleAnswer(selectedBtn, correctEn, timedOut = false) {
     });
 
     outcome[qIndex] = isCorrect ? 'right' : 'wrong';
+    const fast = isCorrect && performance.now() - qShownAt < FAST_MS;
+    if (fast) {
+        streak++;
+        earnedPoints += streak >= 5 ? 2 : 1;
+        playStreak(streak);
+        if (streak >= 3) { playCoins(streak); streakLook(streak); }
+    } else if (streak > 0) {
+        streak = 0;
+        streakLook(0);
+    }
+    showStreakBadge();
+    if (!isCorrect) { damage(); playHit(); }
     if (isCorrect) {
         score++;
         feedbackEl.className = 'quiz-feedback correct';
@@ -411,7 +455,16 @@ function handleAnswer(selectedBtn, correctEn, timedOut = false) {
         if (type === 'grand') limit = MAX_MISTAKES_GRAND;
         if (type === 'boss') limit = MAX_MISTAKES_BOSS;
 
+        // An extra life (bought with streak points) saves the student once
+        if (wrongCount >= limit && extraLives > 0) {
+            extraLives--;
+            wrongCount--;
+            playLife();
+            showToast(`❤️ Extra life used! ${extraLives} left`);
+            if (currentUser) useExtraLife(currentUser.uid).catch(() => { });
+        }
         if (wrongCount >= limit) {
+            savePoints();
             feedbackEl.style.display = 'block';
             if (btnNext) btnNext.style.display = 'none';
             setTimeout(() => showLooserModal(), 800);
@@ -421,6 +474,28 @@ function handleAnswer(selectedBtn, correctEn, timedOut = false) {
 
     feedbackEl.style.display = 'block';
     if (btnNext) btnNext.style.display = 'block';
+}
+
+// ─── Speed streak badge + saving the points ─
+function showStreakBadge() {
+    let b = document.getElementById('streak-badge');
+    if (!b) {
+        const score = document.getElementById('score-badge');
+        if (!score) return;
+        b = document.createElement('span');
+        b.id = 'streak-badge';
+        b.className = 'quiz-streak-badge';
+        score.insertAdjacentElement('beforebegin', b);
+    }
+    b.textContent = streak > 0 ? `⚡ x${streak}` : (earnedPoints ? `⚡ ${earnedPoints} pts` : '');
+    b.classList.toggle('hot', streak >= 3);
+    b.hidden = !b.textContent;
+}
+
+function savePoints() {
+    if (pointsSaved || !currentUser) return;
+    pointsSaved = true;
+    addStreakPoints(currentUser.uid, earnedPoints).catch(() => { });
 }
 
 // ─── GET OUT LOOSER Modal ───────────────────
@@ -493,6 +568,8 @@ function showPassModal() {
 // ─── Results ───────────────────────────────
 async function showResults() {
     stopTimer();
+    savePoints();
+    streakLook(0);
     const total = quizWords.length;
     const pct = score / total;
 
@@ -604,6 +681,7 @@ async function showResults() {
             <h2>${passed ? passHeading : '😬 Failed'}</h2>
             <div class="result-score-big">${Math.round(pct * 100)}%</div>
             <p>You got ${score} out of ${total} correct.</p>
+            ${earnedPoints > 0 ? `<p class="streak-earned">⚡ +${earnedPoints} streak points: spend them on extra lives in the store!</p>` : ''}
             ${passed && type === 'level' && level === 6
             ? `<p class="master-unlock-msg">🏆 All 6 levels complete! Master Quiz unlocked.</p>`
             : ''}

@@ -6,7 +6,7 @@ import {
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
     getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where, writeBatch, collectionGroup
+    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where, writeBatch, collectionGroup, increment, runTransaction
 }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
@@ -319,6 +319,29 @@ async function getAllAttempts() {
     return snap.docs.map(d => ({ uid: d.ref.parent.parent.id, ...d.data() }));
 }
 
+// ── Speed streaks + the store ─────────────────────────────────────
+async function addStreakPoints(uid, n) {
+    if (n > 0) await updateDoc(doc(db, "users", uid), { streakPoints: increment(n) });
+}
+
+// An extra life was used inside a quiz
+async function useExtraLife(uid) {
+    await updateDoc(doc(db, "users", uid), { extraLives: increment(-1) });
+}
+
+// Buy one life: only with enough points and under the cap (read and write together, so a double tap buys one)
+async function buyLife(uid, price, maxLives) {
+    return runTransaction(db, async (tx) => {
+        const ref = doc(db, "users", uid);
+        const d = (await tx.get(ref)).data() || {};
+        const points = d.streakPoints ?? 0, lives = d.extraLives ?? 0;
+        if (lives >= maxLives) throw { code: 'eiff/max-lives' };
+        if (points < price) throw { code: 'eiff/no-points' };
+        tx.update(ref, { streakPoints: points - price, extraLives: lives + 1 });
+        return { points: points - price, lives: lives + 1 };
+    });
+}
+
 // ── Global Config ─────────────────────────────────────────────────
 
 async function getGlobalConfig() {
@@ -364,6 +387,7 @@ export {
     auth, db, onAuthStateChanged,
     eiffSignUp, eiffSignIn, eiffSignOut, adminSignIn, isAdminUser, eiffGoogleSignIn, isNameTaken, cleanName, hasGoogle, linkGoogle,
     sendMessageToAll, setPaused, resetProgress, getAllAttempts,
+    addStreakPoints, useExtraLife, buyLife,
     getUserData, getAllUsers, findUserByName,
     unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
     updateUserProfile, sendUserPasswordReset,
