@@ -36,7 +36,7 @@ testarea\
 ├── dashboard.html      # Level selection grid — chapters 1–10, levels 1–6 each + Grand Quiz card
 ├── study.html          # Vocabulary study table for a specific chapter+level
 ├── quiz.html           # Quiz shell (HTML only, logic in quiz.js)
-├── admin.html          # Admin Command Center (login: sudo / Mashakel#2)
+├── admin.html          # Admin Command Center (Firebase sign-in: the admin account only)
 ├── plan.md             # Implementation plan
 ├── status.md           # Task completion tracker
 │
@@ -183,7 +183,7 @@ Study page → Warning modal → quiz.html?type=level&chapter=X&level=Y
 
 ## 🖥️ Admin Panel — `/admin.html`
 
-**Login:** username `sudo`, password `Mashakel#2` (sessionStorage, clears on tab close)
+**Login:** a real Firebase sign-in with the admin account (`sudox@eiff.com`, or type `sudo`). Only an account with the `admin` mark gets in; the database rules check the same mark. The password is never written in the code.
 
 ### Features
 | Section | What it does |
@@ -307,7 +307,7 @@ npx serve
 - **Warning for AI Collaborators**: Added deployment and local-vs-live warnings to this README.
 
 ### V1.5 — 2026-05-15
-- **Admin password** changed to `Mashakel#2` (username: `sudo`)
+- **Admin password** moved out of the code (2026-11-14): Firebase sign-in + the `admin` mark
 - **Edit Profile** section added to Student Detail Modal:
   - Change student display name → saves to Firestore instantly
   - Change student email (Firestore display) → updates DB record

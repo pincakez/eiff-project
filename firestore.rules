@@ -1,0 +1,37 @@
+rules_version = '2';
+// EiFF database rules (2026-11-14). Live copy = Firebase console → Firestore → Rules; keep this file the same.
+// Admin = a Firebase account carrying the "admin" mark (set on the server with the Admin key, never from a page).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function isMe(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // Sign-in by username: one name → its email, read one at a time, never listed.
+    match /usernames/{name} {
+      allow get: if true;
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email;
+      allow update, delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn();                       // the leaderboard ranks everyone
+      allow create: if isMe(uid) && request.resource.data.isInsider == false;
+      allow update: if isAdmin()
+        || (isMe(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isInsider', 'email']));
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid}/attempts/{attemptId} {
+      allow read, create: if isMe(uid) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /config/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

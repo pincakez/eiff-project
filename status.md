@@ -52,7 +52,7 @@
 |---|------|--------|---------|
 | 17 | Migrate all vocabulary (Chapters 1–10, 2,967 words) into `data-sector1A.js` | ✅ Done | `js/data-sector1A.js` |
 | 18 | Insider/Ghost account system (`isInsider` Firestore flag) | ✅ Done | `js/firebase-config.js`, `admin.html`, `leaderboard.html` |
-| 19 | Create `sudox` insider account via Node.js REST API | ✅ Done | `create-sudox.html` (utility) |
+| 19 | Create `sudox` insider account via Node.js REST API | ✅ Done | (utility removed 2026-11-14) |
 | 20 | Username login support (login with name OR email) | ✅ Done | `js/auth-ui.js`, `js/firebase-config.js` |
 | 21 | First-name-only rule on signup (`split(' ')[0]`) | ✅ Done | `js/auth-ui.js` |
 | 22 | Grand Quiz mistake limit slider in admin Global Config | ✅ Done | `admin.html` |
@@ -69,10 +69,10 @@
 - Purple CSS classes added: `.badge-purple`, `.btn-sm-purple`
 
 #### ✅ 19. sudox Insider Account
-- Email: `sudox@eiff.com` | Password: `Mashakel#2` | UID: `7WetHyLtsbQkgPjsk7ie1Ub6XtJ2`
+- Email: `sudox@eiff.com` | UID: `7WetHyLtsbQkgPjsk7ie1Ub6XtJ2`
 - `unlockedLevel: 61`, `unlockedChapter: 10`, `isInsider: true`
 - Created via Node.js REST API (Firebase Identity Toolkit + Firestore REST PATCH)
-- To recreate: open `create-sudox.html` in browser while served locally, OR re-run the Node script from `create-sudox.html`
+- The admin mark is set on the server (Firebase Admin), never from a page
 
 #### ✅ 20–21. Username Login
 - Sign In field now accepts email OR first name
@@ -118,7 +118,7 @@
 
 | # | Task | Status | File(s) |
 |---|------|--------|---------|
-| 1 | Admin password → `Mashakel#2` | ✅ Done | `admin.html` |
+| 1 | Admin password (moved out of the code 2026-11-14) | ✅ Done | `admin.html` |
 | 2 | Edit Student Profile (Name / Email / Password Reset) | ✅ Done | `admin.html`, `js/firebase-config.js` |
 | 3 | Bug Fix: Looser modal dynamic mistake count | ✅ Done | `js/quiz.js` |
 | 4 | Bug Fix: loginHistory timestamp comment | ✅ Done | `js/firebase-config.js` |

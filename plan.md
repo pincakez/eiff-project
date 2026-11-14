@@ -10,7 +10,7 @@ All changes requested on 2026-05-15. Admin authorized full execution, no confirm
 
 ### 🔐 1. Admin Password Update
 - **File:** `admin.html`
-- **Change:** `ADMIN_PASS = '239995'` → `ADMIN_PASS = 'Mashakel#2'`
+- **Change:** (old: a password in the page; replaced 2026-11-14 by a Firebase admin sign-in)
 - **Note:** Admin username stays `sudo`
 
 ---

@@ -35,7 +35,29 @@ async function eiffSignUp(email, password, displayName) {
         // loginHistory uses Date.now() intentionally — serverTimestamp() cannot be stored inside Firestore arrays.
         loginHistory: [Date.now()]
     });
+    // Sign-in by username reads this small lookup (the database rules never let a visitor list the users).
+    // A name someone already has is skipped: that student signs in with their email instead.
+    const name = displayName || email.split('@')[0];
+    if (!name.includes('/')) {
+        try { await setDoc(doc(db, "usernames", name), { email, uid }); } catch (e) { /* name taken */ }
+    }
     return userCred.user;
+}
+
+// Admin sign-in: a real Firebase account that carries the "admin" mark (set on the server, never in this code).
+async function adminSignIn(email, password) {
+    const userCred = await signInWithEmailAndPassword(auth, email, password);
+    if (!(await isAdminUser(userCred.user))) {
+        await signOut(auth);
+        throw { code: 'auth/not-admin' };
+    }
+    return userCred.user;
+}
+
+async function isAdminUser(user) {
+    if (!user) return false;
+    const t = await user.getIdTokenResult(true);
+    return t.claims.admin === true;
 }
 
 async function eiffSignIn(email, password) {
@@ -62,12 +84,9 @@ async function getAllUsers() {
 }
 
 async function findUserByName(name) {
-    const q = query(collection(db, "users"), where("displayName", "==", name), limit(1));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-        return snap.docs[0].data().email;
-    }
-    return null;
+    if (!name || name.includes('/')) return null;
+    const snap = await getDoc(doc(db, "usernames", name));
+    return snap.exists() ? snap.data().email : null;
 }
 
 // ── Lockout ───────────────────────────────────────────────────────
@@ -225,7 +244,7 @@ async function markMessageRead(uid, msgId) {
 
 export {
     auth, db, onAuthStateChanged,
-    eiffSignUp, eiffSignIn, eiffSignOut,
+    eiffSignUp, eiffSignIn, eiffSignOut, adminSignIn, isAdminUser,
     getUserData, getAllUsers, findUserByName,
     unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
     updateUserProfile, sendUserPasswordReset,

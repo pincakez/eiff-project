@@ -914,8 +914,8 @@
             <div class="login-title">EiFF Admin</div>
             <div class="login-sub">Command Center — authorised personnel only.</div>
             <div class="login-field">
-                <label>Username</label>
-                <input type="text" id="inp-user" placeholder="username" autocomplete="off">
+                <label>Admin email</label>
+                <input type="text" id="inp-user" placeholder="admin email" autocomplete="username">
             </div>
             <div class="login-field">
                 <label>Password</label>
@@ -1403,7 +1403,8 @@
             getAllUsers, getUserAttempts,
             clearLockout, lockUser, setUserLevel, setUserChapter,
             updateUserProfile, sendUserPasswordReset, deleteUserData,
-            getGlobalConfig, setGlobalConfig, sendUserMessage, setInsiderFlag
+            getGlobalConfig, setGlobalConfig, sendUserMessage, setInsiderFlag,
+            auth, onAuthStateChanged, adminSignIn, isAdminUser, eiffSignOut
         } from './js/firebase-config.js';
 
         // ── Helpers ──────────────────────────────────────────────
@@ -1435,40 +1436,42 @@
         }
 
         // ── Login ─────────────────────────────────────────────────
-        const ADMIN_USER = 'sudo';
-        const ADMIN_PASS = 'Mashakel#2';
-
-        function checkLogin() {
-            return sessionStorage.getItem('eiff-admin') === 'true';
+        // A real Firebase sign-in: only an account with the "admin" mark gets in, and the
+        // database rules check that same mark on every read and write (no password lives in this page).
+        let started = false;
+        function showApp() {
+            if (started) return;
+            started = true;
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            init();
         }
 
         document.getElementById('btn-login').addEventListener('click', attemptLogin);
         document.getElementById('inp-pass').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
 
-        function attemptLogin() {
-            const u = document.getElementById('inp-user').value.trim();
-            const p = document.getElementById('inp-pass').value.trim();
+        async function attemptLogin() {
+            let u = document.getElementById('inp-user').value.trim();
+            const p = document.getElementById('inp-pass').value;
             const err = document.getElementById('login-error');
-            if (u === ADMIN_USER && p === ADMIN_PASS) {
-                sessionStorage.setItem('eiff-admin', 'true');
-                document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('app').style.display = 'flex';
-                init();
-            } else {
+            if (u === 'sudo' || u === 'sudox') u = 'sudox@eiff.com';
+            err.style.display = 'none';
+            try {
+                await adminSignIn(u, p);
+                showApp();
+            } catch (e) {
                 err.style.display = 'block';
                 document.getElementById('inp-pass').value = '';
                 document.getElementById('inp-pass').focus();
             }
         }
 
-        if (checkLogin()) {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('app').style.display = 'flex';
-            init();
-        }
+        onAuthStateChanged(auth, async (user) => {
+            if (user && await isAdminUser(user)) showApp();
+        });
 
-        document.getElementById('btn-logout').addEventListener('click', () => {
-            sessionStorage.removeItem('eiff-admin');
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            await eiffSignOut();
             location.reload();
         });
 
