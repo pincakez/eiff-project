@@ -315,16 +315,22 @@ function showQuestion() {
     if (scoreBadge) scoreBadge.textContent = `Score: ${score}`;
     if (btnNext) btnNext.style.display = 'none';
 
-    // Choices: 4 unique options
+    // Choices: 4 options that LOOK different. Two English words can share a meaning («a» and «an» are both
+    // «أداة نكرة», «will» and «would» both «سوف»), and students saw two identical right-looking buttons where
+    // only one counted. So a wrong option may not repeat the Arabic or the Egyptian of any option already in.
+    const norm = t => String(t ?? '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/\s+/g, ' ').trim();
     const usedKeys = new Set([word.en]);
+    const usedMeanings = new Set([norm(word.ar), norm(word.eg)].filter(Boolean));
     const candidatePool = shuffle(allWords.filter(w => w.en !== word.en));
     const distractors = [];
     for (const candidate of candidatePool) {
-        if (!usedKeys.has(candidate.en)) {
-            usedKeys.add(candidate.en);
-            distractors.push(candidate);
-            if (distractors.length === 3) break;
-        }
+        const ar = norm(candidate.ar), eg = norm(candidate.eg);
+        if (usedKeys.has(candidate.en) || usedMeanings.has(ar) || usedMeanings.has(eg)) continue;
+        usedKeys.add(candidate.en);
+        if (ar) usedMeanings.add(ar);
+        if (eg) usedMeanings.add(eg);
+        distractors.push(candidate);
+        if (distractors.length === 3) break;
     }
     const choices = shuffle([word, ...distractors]);
 
