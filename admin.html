@@ -917,6 +917,7 @@
 
         /* ── Phones (2026-11-14): the page was 2–3 screens wide; the side menu becomes a top bar ── */
         @media (max-width: 820px) {
+            #app { flex-direction: column; }   /* the page shows #app as a flex ROW: stack the menu on top */
             .sidebar {
                 position: sticky; top: 0; bottom: auto; width: 100%;
                 flex-direction: row; align-items: center; gap: 4px;
