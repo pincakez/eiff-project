@@ -38,6 +38,7 @@ let score = 0;
 let answered = false;
 let passesRemaining = 2;
 let wrongCount = 0;       // tracks mistakes for ejection
+let outcome = [];         // per question: 'right' | 'wrong' — so a Skip can take its points back
 let timerInterval = null; // reference to countdown setInterval
 let globalConfig = null;
 
@@ -82,10 +83,20 @@ onAuthStateChanged(auth, async (user) => {
         }
     } catch (_) { /* use defaults */ }
 
+    try {
+    // Only a quiz the student has really unlocked opens (a typed address never skips ahead)
+    const me = await getUserData(user.uid);
+    if (!me) { await eiffSignOut(); window.location.href = 'index.html'; return; }
+    if (!quizIsOpenFor(me)) {
+        alert('الاختبار ده لسه مقفول. كمّل اللي قبله الأول.');
+        window.location.href = `dashboard.html?chapter=${Math.min(chapter, me.unlockedChapter ?? 1)}`;
+        return;
+    }
+
     // Double check lockout
     const lockout = await checkLockout(user.uid);
     if (lockout.isLocked) {
-        alert('أنت محظور من الاختبارات لمدة 12 ساعة يا باشة.');
+        alert(`أنت محظور من الاختبارات لمدة ${lockout.penaltyHours ?? 12} ساعة يا باشة.`);
         window.location.href = 'dashboard.html';
         return;
     }
@@ -99,7 +110,23 @@ onAuthStateChanged(auth, async (user) => {
     } else {
         initQuiz();
     }
+    } catch (err) {
+        console.error(err);
+        const area = document.getElementById('quiz-area');
+        if (area) area.innerHTML = `<p style="text-align:center;padding:40px">⚠️ Something went wrong loading the quiz. Check your connection and <a href="dashboard.html">go back</a>.</p>`;
+    }
 });
+
+// Is this quiz open for this student? (the same rules the dashboard draws)
+function quizIsOpenFor(me) {
+    const uLevel = me.unlockedLevel ?? 1;
+    const uChapter = me.unlockedChapter ?? 1;
+    if (type === 'level') return chapter >= 1 && chapter <= 10 && level >= 1 && level <= 6 && globalLevel <= uLevel && chapter <= uChapter;
+    if (type === 'master') return chapter >= 1 && chapter <= 10 && uLevel > chapter * 6 && chapter <= uChapter;
+    if (type === 'grand') return uChapter >= 11;
+    if (type === 'boss') return me.grandQuizPassed === true;
+    return false;
+}
 
 // ─── Entry Modal ───────────────────────────
 function showEntryModal(onConfirm) {
@@ -262,7 +289,7 @@ function startTimer(correctEn) {
         if (secondsLeft <= 0) {
             stopTimer();
             if (!answered) {
-                const anyBtn = document.querySelector('.quiz-choice:not([data-en="' + correctEn + '"])');
+                const anyBtn = document.querySelector('.quiz-choice:not([data-en="' + CSS.escape(correctEn) + '"])');
                 handleAnswer(anyBtn || document.querySelector('.quiz-choice'), correctEn, true);
             }
         }
@@ -321,7 +348,7 @@ function showQuestion() {
 
             <div class="quiz-choices">
                 ${choices.map((c) => `
-                    <button class="quiz-choice" data-en="${c.en}">
+                    <button class="quiz-choice" data-en="${String(c.en).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">
                         <span class="choice-ar">${c.ar}</span>
                         <span class="choice-eg">${c.eg}</span>
                     </button>
@@ -362,6 +389,7 @@ function handleAnswer(selectedBtn, correctEn, timedOut = false) {
         else if (btn === selectedBtn && !isCorrect) btn.classList.add('wrong');
     });
 
+    outcome[qIndex] = isCorrect ? 'right' : 'wrong';
     if (isCorrect) {
         score++;
         feedbackEl.className = 'quiz-feedback correct';
@@ -438,7 +466,14 @@ function showPassModal() {
 
     modal.querySelector('#btn-confirm-pass').onclick = () => {
         passesRemaining--;
-        qIndex = Math.max(0, qIndex - 2);
+        const back = Math.max(0, qIndex - 2);
+        // The questions asked again are counted again, so take back what they already gave
+        for (let i = back; i <= qIndex; i++) {
+            if (outcome[i] === 'right') score--;
+            if (outcome[i] === 'wrong') wrongCount--;
+            outcome[i] = undefined;
+        }
+        qIndex = back;
         const newWord = shuffle(allWords)[0];
         quizWords[qIndex] = newWord;
 

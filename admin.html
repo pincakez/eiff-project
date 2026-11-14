@@ -1304,9 +1304,9 @@
             </div>
 
             <div class="control-group">
-                <div class="control-label">🏆 Set Unlocked Chapter (1–10)</div>
+                <div class="control-label">🏆 Set Unlocked Chapter (1–11 · 11 = Chapter X)</div>
                 <div class="control-row">
-                    <input type="range" id="ctrl-chapter" min="1" max="10" value="1">
+                    <input type="range" id="ctrl-chapter" min="1" max="11" value="1">
                     <div class="control-val" id="lbl-ctrl-chapter">1</div>
                     <button class="btn-sm btn-sm-amber" id="modal-set-chapter">Apply</button>
                 </div>
@@ -1320,9 +1320,8 @@
                     <span class="edit-status" id="status-name"></span>
                 </div>
                 <div class="edit-profile-row">
-                    <input type="email" id="ctrl-edit-email" placeholder="New email address…">
-                    <button class="btn-sm btn-sm-amber" id="modal-save-email">Save Email</button>
-                    <span class="edit-status" id="status-email"></span>
+                    <input type="email" id="ctrl-edit-email" readonly title="The sign-in email cannot be changed from this page">
+                    <span style="font-size:0.75rem;color:var(--text3);">Sign-in email (read only)</span>
                 </div>
                 <div class="edit-profile-row">
                     <span style="flex:1;font-size:0.8rem;color:var(--text2);">Sends a Firebase password reset link to the student's registered email.</span>
@@ -1399,6 +1398,9 @@
 
     <!-- ── Script ─────────────────────────────────────────────── -->
     <script type="module">
+
+        // Database text is shown as TEXT, never as page code (a name like <img onerror=…> must not run).
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         import {
             getAllUsers, getUserAttempts,
             clearLockout, lockUser, setUserLevel, setUserChapter,
@@ -1543,10 +1545,10 @@
                 row.innerHTML = `
             <td>
                 <div class="user-cell">
-                    <div class="avatar">${(u.displayName || u.email || '?')[0].toUpperCase()}</div>
+                    <div class="avatar">${esc((u.displayName || u.email || '?')[0].toUpperCase())}</div>
                     <div>
-                        <div class="user-name">${u.displayName || '—'}</div>
-                        <div class="user-email">${u.email || ''}</div>
+                        <div class="user-name">${esc(u.displayName || '—')}</div>
+                        <div class="user-email">${esc(u.email || '')}</div>
                     </div>
                 </div>
             </td>
@@ -1580,10 +1582,10 @@
                 row.innerHTML = `
             <td>
                 <div class="user-cell">
-                    <div class="avatar" style="${insider ? 'background:linear-gradient(135deg,#8b5cf6,#6d28d9);' : ''}">${(u.displayName || u.email || '?')[0].toUpperCase()}</div>
+                    <div class="avatar" style="${insider ? 'background:linear-gradient(135deg,#8b5cf6,#6d28d9);' : ''}">${esc((u.displayName || u.email || '?')[0].toUpperCase())}</div>
                     <div>
-                        <div class="user-name">${u.displayName || '—'} ${insider ? '<span class="badge badge-purple" style="font-size:0.6rem;padding:2px 7px;">👻 INSIDER</span>' : ''}</div>
-                        <div class="user-email">${u.email || ''}</div>
+                        <div class="user-name">${esc(u.displayName || '—')} ${insider ? '<span class="badge badge-purple" style="font-size:0.6rem;padding:2px 7px;">👻 INSIDER</span>' : ''}</div>
+                        <div class="user-email">${esc(u.email || '')}</div>
                     </div>
                 </div>
             </td>
@@ -1845,30 +1847,13 @@
                     buildStudentsTable(filterUsers(document.getElementById('search-input').value));
                     flashStatus('status-name', true, '✅ Saved');
                 } catch (err) {
-                    flashStatus('status-name', false, '❌ Error');
+                    flashStatus('status-name', false, err?.code === 'eiff/name-taken' ? '❌ Name taken' : err?.code === 'eiff/bad-name' ? '❌ No "/" allowed' : '❌ Error');
                 }
                 btn.textContent = 'Save Name'; btn.disabled = false;
             };
 
-            document.getElementById('modal-save-email').onclick = async () => {
-                const newEmail = document.getElementById('ctrl-edit-email').value.trim();
-                if (!newEmail || !newEmail.includes('@')) { flashStatus('status-email', false, '❌ Invalid'); return; }
-                const btn = document.getElementById('modal-save-email');
-                btn.textContent = '…'; btn.disabled = true;
-                try {
-                    await updateUserProfile(activeUid, { email: newEmail });
-                    const cached = allUsersCache.find(u => u.uid === activeUid);
-                    if (cached) cached.email = newEmail;
-                    buildStudentsTable(filterUsers(document.getElementById('search-input').value));
-                    flashStatus('status-email', true, '✅ Saved');
-                } catch (err) {
-                    flashStatus('status-email', false, '❌ Error');
-                }
-                btn.textContent = 'Save Email'; btn.disabled = false;
-            };
-
             document.getElementById('modal-reset-pass').onclick = async () => {
-                const emailToReset = document.getElementById('ctrl-edit-email').value.trim() || user.email;
+                const emailToReset = user.email; // the sign-in email (the box above is read only)
                 if (!emailToReset) { flashStatus('status-pass', false, '❌ No email'); return; }
                 const btn = document.getElementById('modal-reset-pass');
                 btn.textContent = '…'; btn.disabled = true;
@@ -1963,10 +1948,10 @@
                     const lvStr = a.type === 'master' ? '—' : (a.level ?? '—');
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                <td><span class="badge ${a.type === 'master' ? 'badge-amber' : 'badge-grey'}">${a.type?.toUpperCase()}</span></td>
-                <td>${a.chapter ?? '—'}</td>
-                <td>${lvStr}</td>
-                <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem">${scoreStr} ${pctStr}</td>
+                <td><span class="badge ${a.type === 'master' ? 'badge-amber' : 'badge-grey'}">${esc(a.type?.toUpperCase())}</span></td>
+                <td>${esc(a.chapter ?? '—')}</td>
+                <td>${esc(lvStr)}</td>
+                <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem">${esc(scoreStr)} ${esc(pctStr)}</td>
                 <td>${badge}</td>
                 <td style="color:var(--text2)">${when}</td>`;
                     tbody.appendChild(row);
@@ -2054,6 +2039,8 @@
                     document.getElementById('lbl-boss-pass').textContent = `${bp}%`;
 
                     CURRENT_PENALTY_MS = ph * 60 * 60 * 1000;
+                } else {
+                    renderGrandPctSliders(); // no saved settings yet: show the default chapter mix
                 }
             } catch (_) { }
         }

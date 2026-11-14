@@ -3,7 +3,7 @@
 // Handles Sign In / Sign Up modal behavior
 // =============================================
 
-import { eiffSignUp, eiffSignIn, eiffSignOut, auth, onAuthStateChanged, findUserByName } from './firebase-config.js';
+import { eiffSignUp, eiffSignIn, eiffSignOut, auth, onAuthStateChanged, findUserByName, eiffGoogleSignIn, isNameTaken, cleanName } from './firebase-config.js';
 
 // --- Splash Screen ---
 export function initSplash() {
@@ -113,10 +113,8 @@ export function initAuthModals() {
     // --- SIGN UP FORM ---
     document.getElementById('form-signup')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        let name = document.getElementById('signup-name').value.trim();
-        name = name.split(' ')[0]; // Take only the first word as username
-        
         const email = document.getElementById('signup-email').value.trim();
+        const name = cleanName(document.getElementById('signup-name').value, email.split('@')[0]); // the first word = the sign-in name
         const password = document.getElementById('signup-password').value;
         const errEl = document.getElementById('signup-error');
         const btn = e.target.querySelector('button[type="submit"]');
@@ -133,17 +131,45 @@ export function initAuthModals() {
         btn.textContent = 'Creating account...';
 
         try {
+            // Every sign-in name belongs to one student only, so «Ahmed» can sign in by name.
+            if (await isNameTaken(name)) throw { code: 'eiff/name-taken', name };
             await eiffSignUp(email, password, name);
             closeModal(signUpModal);
             showToast('🎉 Account created! Welcome to EiFF!');
             setTimeout(() => window.location.href = 'dashboard.html', 800);
         } catch (err) {
-            errEl.textContent = friendlyAuthError(err.code);
+            errEl.textContent = err.code === 'eiff/name-taken'
+                ? `The name "${err.name}" is taken. Please use another first name (for example ${err.name}${Math.floor(Math.random() * 90) + 10}).`
+                : friendlyAuthError(err.code);
             errEl.style.display = 'block';
         } finally {
             btn.disabled = false;
             btn.textContent = 'Create Account';
         }
+    });
+
+    // --- CONTINUE WITH GOOGLE (both windows) ---
+    document.querySelectorAll('.btn-google').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const errEl = btn.closest('.modal-box')?.querySelector('.auth-error');
+            if (errEl) errEl.style.display = 'none';
+            btn.disabled = true;
+            try {
+                const r = await eiffGoogleSignIn();
+                closeModal(signInModal);
+                closeModal(signUpModal);
+                showToast(r.isNew ? `🎉 Welcome to EiFF, ${r.name}!` : '✅ Welcome back!');
+                setTimeout(() => window.location.href = 'dashboard.html', 700);
+            } catch (err) {
+                if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+                if (errEl) {
+                    errEl.textContent = friendlyAuthError(err.code);
+                    errEl.style.display = 'block';
+                }
+            } finally {
+                btn.disabled = false;
+            }
+        });
     });
 
     // --- SIGN OUT ---
@@ -176,6 +202,9 @@ function friendlyAuthError(code) {
         'auth/too-many-requests': 'Too many attempts. Please wait a moment.',
         'auth/invalid-credential': 'Invalid email or password.',
         'auth/network-request-failed': 'Network error. Check your connection.',
+        'auth/popup-blocked': 'Your browser blocked the Google window. Allow pop-ups for this site and try again.',
+        'auth/account-exists-with-different-credential': 'This email already has an account. Sign in with your password.',
+        'eiff/removed': 'This account was removed. Please contact your teacher.',
     };
     return map[code] || 'Something went wrong. Please try again.';
 }

@@ -314,6 +314,9 @@
     </div>
 
     <script type="module">
+
+        // Database text is shown as TEXT, never as page code (a name like <img onerror=…> must not run).
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         import { auth, onAuthStateChanged, getAllUsers } from './js/firebase-config.js';
 
         // ── Helpers ──────────────────────────────
@@ -400,10 +403,10 @@
                 row.className = `lb-row tier-${tierNum}${isMe ? ' is-me' : ''}`;
                 row.innerHTML = `
                     <div class="lb-rank">${tier.emoji}</div>
-                    <div class="lb-avatar">${name[0].toUpperCase()}</div>
+                    <div class="lb-avatar">${esc(name[0].toUpperCase())}</div>
                     <div class="lb-info">
-                        <div class="lb-name">${name}</div>
-                        <div class="lb-meta">${lvStr} <span class="lb-words-badge">🧠 ${words.toLocaleString()} words</span></div>
+                        <div class="lb-name">${esc(name)}</div>
+                        <div class="lb-meta">${esc(lvStr)} <span class="lb-words-badge">🧠 ${words.toLocaleString()} words</span></div>
                     </div>
                     <div class="lb-right">
                         <div class="lb-stars">${tier.stars}</div>

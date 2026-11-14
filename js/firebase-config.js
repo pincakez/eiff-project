@@ -1,9 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
+import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail,
+    GoogleAuthProvider, signInWithPopup
+}
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
     getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where
+    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where, writeBatch
 }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
@@ -21,11 +24,24 @@ const db = getFirestore(app);
 
 // ── Auth ──────────────────────────────────────────────────────────
 
-async function eiffSignUp(email, password, displayName) {
-    const userCred = await createUserWithEmailAndPassword(auth, email, password);
-    const uid = userCred.user.uid;
-    await setDoc(doc(db, "users", uid), {
-        displayName: displayName || email.split('@')[0],
+// A sign-in name: the first word, no "/" (a database path character), at most 30 letters.
+function cleanName(raw, fallback) {
+    const first = String(raw || '').trim().split(/\s+/)[0].replace(/\//g, '').slice(0, 30);
+    return first || String(fallback || 'student').replace(/\//g, '').slice(0, 30) || 'student';
+}
+
+// True when a sign-in name is already used by someone.
+async function isNameTaken(name) {
+    if (!name || name.includes('/')) return true;
+    return (await getDoc(doc(db, "usernames", name))).exists();
+}
+
+// The student record + its sign-in name. Firebase keeps emails in lower case, and the database rules
+// compare with that, so the email is stored lower-case too.
+async function createStudentRecord(user, name) {
+    const email = (user.email || '').toLowerCase();
+    await setDoc(doc(db, "users", user.uid), {
+        displayName: name,
         email,
         unlockedLevel: 1,
         unlockedChapter: 1,
@@ -36,12 +52,37 @@ async function eiffSignUp(email, password, displayName) {
         loginHistory: [Date.now()]
     });
     // Sign-in by username reads this small lookup (the database rules never let a visitor list the users).
-    // A name someone already has is skipped: that student signs in with their email instead.
-    const name = displayName || email.split('@')[0];
-    if (!name.includes('/')) {
-        try { await setDoc(doc(db, "usernames", name), { email, uid }); } catch (e) { /* name taken */ }
-    }
+    try { await setDoc(doc(db, "usernames", name), { email, uid: user.uid }); } catch (e) { /* taken a moment ago: email sign-in still works */ }
+}
+
+async function eiffSignUp(email, password, displayName) {
+    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    await createStudentRecord(userCred.user, cleanName(displayName, email.split('@')[0]));
     return userCred.user;
+}
+
+// A removed student (deleted by the admin) cannot sign in again, by password or by Google.
+async function refuseIfRemoved(user) {
+    if ((await getDoc(doc(db, "removed", user.uid))).exists()) {
+        await signOut(auth);
+        throw { code: 'eiff/removed' };
+    }
+}
+
+// "Continue with Google": signs in, and makes the student record the first time.
+async function eiffGoogleSignIn() {
+    const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+    const user = cred.user;
+    await refuseIfRemoved(user);
+    if (await getUserData(user.uid)) {
+        await updateDoc(doc(db, "users", user.uid), { lastSeen: serverTimestamp(), loginHistory: arrayUnion(Date.now()) });
+        return { user, isNew: false };
+    }
+    let base = cleanName(user.displayName, (user.email || '').split('@')[0]);
+    let name = base;
+    for (let n = 2; await isNameTaken(name) && n < 100; n++) name = `${base}${n}`;
+    await createStudentRecord(user, name);
+    return { user, isNew: true, name };
 }
 
 // Admin sign-in: a real Firebase account that carries the "admin" mark (set on the server, never in this code).
@@ -62,6 +103,12 @@ async function isAdminUser(user) {
 
 async function eiffSignIn(email, password) {
     const userCred = await signInWithEmailAndPassword(auth, email, password);
+    await refuseIfRemoved(userCred.user);
+    if (!(await getUserData(userCred.user.uid))) {
+        // Signed up but the record was never made (a network cut): make it now instead of failing.
+        await createStudentRecord(userCred.user, cleanName(userCred.user.displayName, email.split('@')[0]));
+        return userCred.user;
+    }
     await updateDoc(doc(db, "users", userCred.user.uid), {
         lastSeen: serverTimestamp(),
         loginHistory: arrayUnion(Date.now()) // Date.now() intentional — serverTimestamp() not allowed in arrays
@@ -134,7 +181,8 @@ async function unlockNextChapter(uid, currentChapter) {
     const data = await getUserData(uid);
     if (!data) return false;
     const next = currentChapter + 1;
-    if (currentChapter >= (data.unlockedChapter ?? 1) && next <= 11) {
+    // Only the chapter the student is really on moves them on (a quiz for a later chapter never skips ahead).
+    if (currentChapter === (data.unlockedChapter ?? 1) && next <= 11) {
         await updateDoc(doc(db, "users", uid), { unlockedChapter: next, lastSeen: serverTimestamp() });
         return true;
     }
@@ -163,12 +211,27 @@ async function setInsiderFlag(uid, isInsider) {
     await updateDoc(doc(db, "users", uid), { isInsider: Boolean(isInsider) });
 }
 
-// Admin: update a student's display name and/or email in Firestore
-async function updateUserProfile(uid, { displayName, email }) {
-    const updates = { lastSeen: serverTimestamp() };
-    if (displayName !== undefined && displayName !== null) updates.displayName = displayName;
-    if (email !== undefined && email !== null) updates.email = email;
-    await updateDoc(doc(db, "users", uid), updates);
+// Admin: rename a student. The sign-in name moves with it (usernames/{new} made, usernames/{old} removed),
+// so the student signs in with the NEW name. The email is never changed here: the sign-in email lives in
+// Firebase Auth and a page cannot change it.
+async function updateUserProfile(uid, { displayName }) {
+    const name = (displayName || '').trim();
+    if (!name || name.includes('/')) throw { code: 'eiff/bad-name' };
+    const user = await getUserData(uid);
+    if (!user) throw { code: 'eiff/no-user' };
+    const oldName = user.displayName;
+    const batch = writeBatch(db);
+    if (name !== oldName) {
+        const taken = await getDoc(doc(db, "usernames", name));
+        if (taken.exists() && taken.data().uid !== uid) throw { code: 'eiff/name-taken' };
+        batch.set(doc(db, "usernames", name), { email: (user.email || '').toLowerCase(), uid });
+        if (oldName && !oldName.includes('/')) {
+            const old = await getDoc(doc(db, "usernames", oldName));
+            if (old.exists() && old.data().uid === uid) batch.delete(doc(db, "usernames", oldName));
+        }
+    }
+    batch.update(doc(db, "users", uid), { displayName: name, lastSeen: serverTimestamp() });
+    await batch.commit();
 }
 
 // Admin: send a password reset email via Firebase Auth
@@ -194,10 +257,18 @@ async function getUserAttempts(uid) {
 
 // Admin: permanently delete a student and all their quiz history
 async function deleteUserData(uid) {
-    // Delete all attempts in subcollection first
+    const user = await getUserData(uid);
+    // Mark the account removed FIRST: a sign-in (password or Google) checks this and refuses,
+    // so a removed student can never come back as a fresh account.
+    await setDoc(doc(db, "removed", uid), { at: serverTimestamp(), email: user?.email || '' });
     const attemptsSnap = await getDocs(collection(db, "users", uid, "attempts"));
     await Promise.all(attemptsSnap.docs.map(d => deleteDoc(doc(db, "users", uid, "attempts", d.id))));
-    // Delete the user document itself
+    // Free the sign-in name
+    const name = user?.displayName;
+    if (name && !name.includes('/')) {
+        const u = await getDoc(doc(db, "usernames", name));
+        if (u.exists() && u.data().uid === uid) await deleteDoc(doc(db, "usernames", name));
+    }
     await deleteDoc(doc(db, "users", uid));
 }
 
@@ -244,7 +315,7 @@ async function markMessageRead(uid, msgId) {
 
 export {
     auth, db, onAuthStateChanged,
-    eiffSignUp, eiffSignIn, eiffSignOut, adminSignIn, isAdminUser,
+    eiffSignUp, eiffSignIn, eiffSignOut, adminSignIn, isAdminUser, eiffGoogleSignIn, isNameTaken, cleanName,
     getUserData, getAllUsers, findUserByName,
     unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
     updateUserProfile, sendUserPasswordReset,

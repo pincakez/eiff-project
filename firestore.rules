@@ -10,9 +10,9 @@ service cloud.firestore {
     // Sign-in by username: one name → its email, read one at a time, never listed.
     match /usernames/{name} {
       allow get: if true;
-      allow create: if signedIn()
+      allow create: if isAdmin() || (signedIn()
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.email == request.auth.token.email;
+        && request.resource.data.email == request.auth.token.email);
       allow update, delete: if isAdmin();
     }
 
@@ -27,6 +27,12 @@ service cloud.firestore {
     match /users/{uid}/attempts/{attemptId} {
       allow read, create: if isMe(uid) || isAdmin();
       allow update, delete: if isAdmin();
+    }
+
+    // A student the admin removed: every sign-in checks this and refuses.
+    match /removed/{uid} {
+      allow get: if isMe(uid) || isAdmin();
+      allow list, write: if isAdmin();
     }
 
     match /config/{doc} {
