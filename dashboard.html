@@ -116,7 +116,7 @@
                 if (cfg?.maxMistakesMaster != null) MASTER_MISTAKES = cfg.maxMistakesMaster;
             } catch (_) { }
             userData = await getUserData(user.uid);
-            if (!userData) { await eiffSignOut(); window.location.href = 'index.html'; return; } // a removed account
+            if (!userData || userData.paused === true) { await eiffSignOut(); window.location.href = 'index.html'; return; } // removed or paused
             setupLinkGoogle(user);
 
             // Populate user badge

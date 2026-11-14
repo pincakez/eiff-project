@@ -2147,3 +2147,51 @@ body.master-quiz-active .quiz-score-badge {
   transform: scale(1.05);
   box-shadow: 0 8px 20px rgba(66, 133, 244, 0.4);
 }
+
+/* =============================================
+   VISUAL FIXES (2026-11-14)
+   ============================================= */
+/* The toast hid only by sliding down, so an empty dark pill peeked at the bottom of every page */
+.toast:not(.show) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Connect Google card lines up with the level grid, with side space on phones */
+.link-google {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  max-width: 1052px;
+  margin: 0 auto 24px;
+}
+
+/* Phone top bar: the logo was cut off and «Sign Out» broke onto two lines */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .nav-logo img {
+    height: 32px;
+  }
+
+  .nav-actions {
+    gap: 6px;
+  }
+
+  .btn-leaderboard {
+    padding: 8px 12px;
+    font-size: 0.72rem;
+  }
+
+  .topbar .btn-secondary {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .link-google-actions {
+    flex-wrap: wrap;
+  }
+}

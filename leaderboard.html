@@ -271,6 +271,17 @@
         .lb-row:nth-child(3) { animation-delay: .15s; }
         .lb-row:nth-child(4) { animation-delay: .2s; }
         .lb-row:nth-child(5) { animation-delay: .25s; }
+
+        /* Phones: rows were cramped (names cut to «Z…», the words badge sat on top of the level line) */
+        @media (max-width: 520px) {
+            .lb-row { padding: 14px; gap: 10px; }
+            .lb-row:hover { transform: none; }
+            .lb-avatar { flex-shrink: 0; }
+            .lb-name { font-size: .95rem; }
+            .lb-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+            .lb-words-badge { margin-left: 0; white-space: nowrap; }
+            .lb-stars { font-size: .8rem; letter-spacing: 0; }
+        }
     </style>
 </head>
 <body>

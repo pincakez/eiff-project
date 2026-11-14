@@ -205,6 +205,7 @@ function friendlyAuthError(code) {
         'auth/popup-blocked': 'Your browser blocked the Google window. Allow pop-ups for this site and try again.',
         'auth/account-exists-with-different-credential': 'This email already has an account. Sign in with your password.',
         'eiff/removed': 'This account was removed. Please contact your teacher.',
+        'eiff/paused': 'This account is paused. Please contact your teacher.',
     };
     return map[code] || 'Something went wrong. Please try again.';
 }

@@ -902,6 +902,42 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* ── Admin powers (2026-11-14) ── */
+        .tools-row { display: flex; flex-wrap: wrap; gap: 10px; margin: -6px 0 16px; }
+        .msg-all-panel { background: var(--navy2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; }
+        .msg-all-panel[hidden] { display: none; }
+        .msg-all-panel textarea { width: 100%; box-sizing: border-box; background: var(--navy3); border: 1.5px solid var(--border); color: var(--text);
+            border-radius: 8px; padding: 10px 12px; font-family: 'Inter', sans-serif; font-size: 0.9rem; resize: vertical; outline: none; }
+        .msg-all-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+        .msg-all-foot span { flex: 1; font-size: 0.8rem; color: var(--text2); }
+        .section-title .hint { font-size: 0.72rem; font-weight: 500; color: var(--text3); text-transform: none; letter-spacing: 0; margin-left: 8px; }
+        .rate-bar { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); vertical-align: middle; margin-right: 8px; overflow: hidden; }
+        .rate-bar i { display: block; height: 100%; border-radius: 3px; }
+
+        /* ── Phones (2026-11-14): the page was 2–3 screens wide; the side menu becomes a top bar ── */
+        @media (max-width: 820px) {
+            .sidebar {
+                position: sticky; top: 0; bottom: auto; width: 100%;
+                flex-direction: row; align-items: center; gap: 4px;
+                padding: 6px 8px; border-right: none; border-bottom: 1px solid var(--border);
+                overflow-x: auto; scrollbar-width: thin;
+            }
+            .sidebar-logo { display: none; }
+            .sidebar nav { display: flex; gap: 2px; }
+            .nav-item { white-space: nowrap; padding: 8px 10px; border-left: none; border-bottom: 3px solid transparent; }
+            .nav-item.active { border-bottom-color: var(--amber); }
+            .sidebar-footer { margin: 0 0 0 auto; padding: 0 4px; border-top: none; }
+            .btn-logout { width: auto; white-space: nowrap; padding: 8px 12px; }
+            .main { margin-left: 0; min-width: 0; }
+            .topbar { position: static; padding: 12px 16px; }
+            .content { padding: 16px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .table-wrap { overflow-x: auto; }
+            .table-wrap table { min-width: 640px; }
+            .modal-bg { padding: 10px; }
+            .modal { padding: 20px 16px; max-height: 94vh; }
+        }
     </style>
 </head>
 
@@ -941,6 +977,9 @@
                 </div>
                 <div class="nav-item" data-page="students">
                     <span class="nav-icon">👥</span> Students
+                </div>
+                <div class="nav-item" data-page="insights">
+                    <span class="nav-icon">📈</span> Insights
                 </div>
                 <div class="nav-item" data-page="level">
                     <span class="nav-icon">📝</span> Level Quiz
@@ -1023,6 +1062,18 @@
                         <input class="search-input" type="text" id="search-input"
                             placeholder="🔍  Search by name or email…">
                     </div>
+                    <div class="tools-row">
+                        <button class="btn-sm btn-sm-blue" id="btn-msg-all">✉️ Message everyone</button>
+                        <button class="btn-sm btn-sm-green" id="btn-download">⬇️ Download students (Excel)</button>
+                    </div>
+                    <div class="msg-all-panel" id="msg-all-panel" hidden>
+                        <textarea id="msg-all-text" rows="3" maxlength="1000" placeholder="Your message to every student…"></textarea>
+                        <div class="msg-all-foot">
+                            <span id="msg-all-count">—</span>
+                            <button class="btn-sm btn-sm-blue" id="msg-all-send">Send to everyone</button>
+                            <button class="btn-sm" id="msg-all-cancel">Cancel</button>
+                        </div>
+                    </div>
                     <div class="table-wrap">
                         <table>
                             <thead>
@@ -1039,6 +1090,24 @@
                                     <td colspan="5"><span class="spinner-sm"></span>Loading…</td>
                                 </tr>
                             </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ── Insights page ─────────────────────── -->
+                <div class="page" id="page-insights">
+                    <div class="section-title">🧗 Hardest quizzes <span class="hint">lowest pass rate first · at least 3 tries</span></div>
+                    <div class="table-wrap" style="margin-bottom:28px">
+                        <table>
+                            <thead><tr><th>Quiz</th><th>Tries</th><th>Passed</th><th>Pass rate</th><th>Average score</th></tr></thead>
+                            <tbody id="hard-tbody"><tr class="loader-row"><td colspan="5"><span class="spinner-sm"></span>Loading…</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div class="section-title">🔥 Most active students <span class="hint">sign-ins + quizzes taken (insiders left out)</span></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>#</th><th>Student</th><th>Sign-ins</th><th>Quizzes</th><th>Total actions</th><th>Last seen</th></tr></thead>
+                            <tbody id="active-tbody"><tr class="loader-row"><td colspan="6"><span class="spinner-sm"></span>Loading…</td></tr></tbody>
                         </table>
                     </div>
                 </div>
@@ -1281,8 +1350,17 @@
                 <div class="control-label">🔓 Penalty Control</div>
                 <div class="action-btns">
                     <button class="btn-sm btn-sm-green" id="modal-clear">✅ Remove Lockout</button>
-                    <button class="btn-sm btn-sm-red" id="modal-lock">🔒 Force Lockout (12h)</button>
+                    <button class="btn-sm btn-sm-red" id="modal-lock">🔒 Force Lockout</button>
                     <button class="btn-sm btn-sm-red" id="modal-delete-student" style="margin-left:auto;">🗑️ Delete Student</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">⏸ Pause / Reset</div>
+                <div class="action-btns">
+                    <button class="btn-sm btn-sm-amber" id="modal-pause">⏸ Pause account</button>
+                    <button class="btn-sm btn-sm-red" id="modal-reset">↺ Reset progress to Level 1</button>
+                    <span id="modal-pause-status" style="font-size:0.78rem;color:var(--text2);align-self:center;"></span>
                 </div>
             </div>
 
@@ -1406,7 +1484,8 @@
             clearLockout, lockUser, setUserLevel, setUserChapter,
             updateUserProfile, sendUserPasswordReset, deleteUserData,
             getGlobalConfig, setGlobalConfig, sendUserMessage, setInsiderFlag,
-            auth, onAuthStateChanged, adminSignIn, isAdminUser, eiffSignOut
+            auth, onAuthStateChanged, adminSignIn, isAdminUser, eiffSignOut,
+            sendMessageToAll, setPaused, resetProgress, getAllAttempts
         } from './js/firebase-config.js';
 
         // ── Helpers ──────────────────────────────────────────────
@@ -1430,6 +1509,9 @@
             if (h < 24) return `${h}h ago`;
             return `${d}d ago`;
         }
+
+        // The lock length the admin set (Level Quiz page), e.g. «12h»
+        function penaltyLabel() { return `${Math.round(CURRENT_PENALTY_MS / 3600000 * 10) / 10}h`; }
 
         function levelToChapLv(gl) {
             const ch = Math.ceil(gl / 6);
@@ -1481,6 +1563,7 @@
         const PAGE_META = {
             dashboard: { title: 'Dashboard', sub: 'Overview of all students and activity' },
             students: { title: 'Students', sub: 'Manage individual student progress and penalties' },
+            insights: { title: 'Insights', sub: 'Where students get stuck, and who works the most' },
             level: { title: 'Level Quiz Config', sub: 'Adjust rules for 10-question Level Quizzes' },
             master: { title: 'Master Quiz Config', sub: 'Adjust rules for 50-question Master Quizzes' },
             grand: { title: 'Grand Quiz Config', sub: 'Adjust rules, warning message, & chapter mix for Grand Quiz' },
@@ -1496,8 +1579,121 @@
                 document.getElementById(`page-${page}`).classList.add('active');
                 document.getElementById('page-title').textContent = PAGE_META[page].title;
                 document.getElementById('page-sub').textContent = PAGE_META[page].sub;
+                if (page === 'insights') loadInsights();
             });
         });
+
+        // ── Message everyone ──────────────────────────────────────
+        const realStudents = () => allUsersCache.filter(u => u.isInsider !== true);
+        document.getElementById('btn-msg-all').addEventListener('click', () => {
+            const panel = document.getElementById('msg-all-panel');
+            panel.hidden = !panel.hidden;
+            document.getElementById('msg-all-count').textContent = `Goes to ${realStudents().length} students (insiders left out). They see it on their dashboard.`;
+            if (!panel.hidden) document.getElementById('msg-all-text').focus();
+        });
+        document.getElementById('msg-all-cancel').addEventListener('click', () => {
+            document.getElementById('msg-all-panel').hidden = true;
+        });
+        document.getElementById('msg-all-send').addEventListener('click', async () => {
+            const text = document.getElementById('msg-all-text').value.trim();
+            const btn = document.getElementById('msg-all-send');
+            const count = document.getElementById('msg-all-count');
+            if (!text) { count.textContent = 'Write a message first.'; return; }
+            const uids = realStudents().map(u => u.uid);
+            if (!confirm(`Send this message to ${uids.length} students?`)) return;
+            btn.disabled = true; btn.textContent = 'Sending…';
+            try {
+                await sendMessageToAll(uids, text);
+                count.textContent = `✅ Sent to ${uids.length} students.`;
+                document.getElementById('msg-all-text').value = '';
+            } catch (err) {
+                count.textContent = '❌ Could not send. Check your connection and try again.';
+            }
+            btn.disabled = false; btn.textContent = 'Send to everyone';
+        });
+
+        // ── Download students (CSV that Excel opens, Arabic-safe) ─
+        document.getElementById('btn-download').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-download');
+            btn.disabled = true; btn.textContent = 'Preparing…';
+            try {
+                let attempts = [];
+                try { attempts = await getAllAttempts(); } catch (_) { }
+                const per = {};
+                attempts.forEach(a => {
+                    const p = per[a.uid] ||= { quizzes: 0, passed: 0 };
+                    p.quizzes++; if (a.passed) p.passed++;
+                });
+                const day = ts => ts ? new Date(ts.toDate ? ts.toDate() : ts.seconds * 1000).toISOString().slice(0, 10) : '';
+                const head = ['Name', 'Email', 'Where now', 'Level (1-61)', 'Chapters unlocked', 'Grand Quiz passed', 'Final Boss passed',
+                    'Sign-ins', 'Quizzes taken', 'Quizzes passed', 'Last seen', 'Joined', 'Insider', 'Paused'];
+                const rows = allUsersCache.map(u => [
+                    u.displayName || '', u.email || '', levelToChapLv(u.unlockedLevel ?? 1), u.unlockedLevel ?? 1, u.unlockedChapter ?? 1,
+                    u.grandQuizPassed ? 'yes' : 'no', u.finalBossPassed ? 'yes' : 'no',
+                    (u.loginHistory || []).length, per[u.uid]?.quizzes ?? 0, per[u.uid]?.passed ?? 0,
+                    day(u.lastSeen), day(u.createdAt), u.isInsider ? 'yes' : 'no', u.paused ? 'yes' : 'no'
+                ]);
+                // A cell starting with = + - @ is a formula in Excel: put a quote in front so it stays text
+                const cell = v => { let s = String(v ?? ''); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+                const csv = '\ufeff' + [head, ...rows].map(r => r.map(cell).join(',')).join('\r\n');
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+                a.download = `eiff-students-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            } catch (err) {
+                alert('Could not make the file. Try again.');
+            }
+            btn.disabled = false; btn.textContent = '⬇️ Download students (Excel)';
+        });
+
+        // ── Insights: hardest quizzes + most active students ──────
+        async function loadInsights() {
+            const hard = document.getElementById('hard-tbody');
+            const act = document.getElementById('active-tbody');
+            let attempts;
+            try { attempts = await getAllAttempts(); }
+            catch (err) {
+                hard.innerHTML = act.innerHTML = `<tr><td colspan="6" style="color:var(--red);text-align:center;padding:20px">Could not load. Try again.</td></tr>`;
+                return;
+            }
+            const insiders = new Set(allUsersCache.filter(u => u.isInsider === true).map(u => u.uid));
+            const real = attempts.filter(a => !insiders.has(a.uid));
+
+            // hardest
+            const groups = {};
+            real.forEach(a => {
+                const key = a.type === 'level' ? `level-${a.chapter}-${a.level}` : a.type === 'master' ? `master-${a.chapter}` : a.type;
+                const label = a.type === 'level' ? `Level quiz · Ch.${a.chapter} Lv.${a.level}` : a.type === 'master' ? `Master quiz · Ch.${a.chapter}`
+                    : a.type === 'grand' ? 'Grand Quiz' : a.type === 'boss' ? 'THE FINAL BOSS' : String(a.type);
+                const g = groups[key] ||= { label, tries: 0, passed: 0, pctSum: 0, pctN: 0 };
+                g.tries++; if (a.passed) g.passed++;
+                const pct = a.pct ?? (a.total ? Math.round(a.score / a.total * 100) : null);
+                if (pct != null) { g.pctSum += pct; g.pctN++; }
+            });
+            const list = Object.values(groups).filter(g => g.tries >= 3)
+                .map(g => ({ ...g, rate: Math.round(g.passed / g.tries * 100), avg: g.pctN ? Math.round(g.pctSum / g.pctN) : null }))
+                .sort((x, y) => x.rate - y.rate || y.tries - x.tries).slice(0, 15);
+            hard.innerHTML = list.length ? list.map(g => {
+                const col = g.rate < 40 ? 'var(--red)' : g.rate < 70 ? 'var(--amber)' : 'var(--green)';
+                return `<tr><td>${esc(g.label)}</td><td>${g.tries}</td><td>${g.passed}</td>
+                    <td><span class="rate-bar"><i style="width:${g.rate}%;background:${col}"></i></span>${g.rate}%</td>
+                    <td>${g.avg == null ? '—' : g.avg + '%'}</td></tr>`;
+            }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Not enough quiz tries yet.</td></tr>`;
+
+            // most active
+            const quizzes = {};
+            real.forEach(a => { quizzes[a.uid] = (quizzes[a.uid] || 0) + 1; });
+            const top = allUsersCache.filter(u => !insiders.has(u.uid))
+                .map(u => ({ u, signins: (u.loginHistory || []).length, quizzes: quizzes[u.uid] || 0 }))
+                .map(x => ({ ...x, total: x.signins + x.quizzes }))
+                .filter(x => x.total > 0)
+                .sort((a, b) => b.total - a.total).slice(0, 10);
+            act.innerHTML = top.length ? top.map((x, i) => `<tr><td>${['🥇', '🥈', '🥉'][i] || i + 1}</td>
+                <td><div class="user-name">${esc(x.u.displayName || '—')}</div><div class="user-email">${esc(x.u.email || '')}</div></td>
+                <td>${x.signins}</td><td>${x.quizzes}</td><td><b>${x.total}</b></td><td style="color:var(--text2)">${timeAgo(x.u.lastSeen)}</td></tr>`).join('')
+                : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">No activity yet.</td></tr>`;
+        }
 
         // ── Main Init ─────────────────────────────────────────────
         let allUsersCache = [];
@@ -1557,7 +1753,9 @@
                 <div class="progress-sub">Level ${gl} of 60</div>
             </td>
             <td style="color:var(--text2)">${timeAgo(u.lastSeen)}</td>
-            <td>${locked_
+            <td>${u.paused === true
+                        ? `<span class="badge badge-amber">⏸ Paused</span>`
+                        : locked_
                         ? `<span class="badge badge-red">🔒 Locked</span>`
                         : `<span class="badge badge-green">✅ Active</span>`}
             </td>`;
@@ -1594,7 +1792,9 @@
                 <div class="progress-sub">Lv.${gl} · Ch.${u.unlockedChapter ?? 1} unlocked</div>
             </td>
             <td style="color:var(--text2)">${timeAgo(u.lastSeen)}</td>
-            <td>${locked_
+            <td>${u.paused === true
+                        ? `<span class="badge badge-amber">⏸ Paused</span>`
+                        : locked_
                         ? `<span class="badge badge-red">🔒 Locked</span>`
                         : `<span class="badge badge-green">✅ Active</span>`}
             </td>
@@ -1603,7 +1803,7 @@
                     <button class="btn-sm btn-sm-blue"  data-uid="${u.uid}">📋 Details</button>
                     ${locked_
                         ? `<button class="btn-sm btn-sm-green" data-uid="${u.uid}" data-action="clear">Remove Penalty</button>`
-                        : `<button class="btn-sm btn-sm-red"   data-uid="${u.uid}" data-action="lock">Lock 12h</button>`}
+                        : `<button class="btn-sm btn-sm-red"   data-uid="${u.uid}" data-action="lock">Lock ${penaltyLabel()}</button>`}
                     <button class="btn-sm btn-sm-red" data-uid="${u.uid}" data-action="delete" title="Delete student">🗑️</button>
                 </div>
             </td>`;
@@ -1738,9 +1938,46 @@
                     await loadAllUsers();
                     buildStudentsTable(filterUsers(document.getElementById('search-input').value));
                 } catch (err) {
-                    alert('Error: Please check Firestore Rules (allow write for admin).');
+                    alert('Could not save. Check your connection and try again.');
                     btn.textContent = '✅ Remove Lockout';
                 }
+                btn.disabled = false;
+            };
+            document.getElementById('modal-lock').textContent = `🔒 Force Lockout (${penaltyLabel()})`;
+
+            // Pause / Reset
+            const pauseBtn = document.getElementById('modal-pause');
+            const pauseStatus = document.getElementById('modal-pause-status');
+            const showPause = () => {
+                pauseBtn.textContent = user.paused === true ? '▶ Unpause account' : '⏸ Pause account';
+                pauseStatus.textContent = user.paused === true ? 'Paused: cannot sign in or take quizzes.' : '';
+            };
+            showPause();
+            pauseBtn.onclick = async () => {
+                const to = !(user.paused === true);
+                if (to && !confirm(`Pause ${user.displayName || 'this student'}? They cannot sign in until you unpause. Nothing is deleted.`)) return;
+                pauseBtn.disabled = true;
+                try {
+                    await setPaused(activeUid, to);
+                    user.paused = to;
+                    const cached = allUsersCache.find(u => u.uid === activeUid);
+                    if (cached) cached.paused = to;
+                    showPause();
+                    buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+                } catch (err) { alert('Could not save. Check your connection and try again.'); }
+                pauseBtn.disabled = false;
+            };
+            document.getElementById('modal-reset').onclick = async () => {
+                if (!confirm(`Reset ${user.displayName || 'this student'} back to Chapter 1, Level 1? Their quiz history stays. This cannot be undone.`)) return;
+                const btn = document.getElementById('modal-reset');
+                btn.disabled = true;
+                try {
+                    await resetProgress(activeUid);
+                    await loadAllUsers();
+                    buildDashboard();
+                    buildStudentsTable(filterUsers(document.getElementById('search-input').value));
+                    pauseStatus.textContent = '✅ Progress reset to Level 1.';
+                } catch (err) { alert('Could not save. Check your connection and try again.'); }
                 btn.disabled = false;
             };
             document.getElementById('modal-lock').onclick = async () => {
@@ -1749,12 +1986,12 @@
                 btn.disabled = true;
                 try {
                     await lockUser(activeUid);
-                    btn.textContent = '🔒 Force Lockout (12h)';
+                    btn.textContent = `🔒 Force Lockout (${penaltyLabel()})`;
                     await loadAllUsers();
                     buildStudentsTable(filterUsers(document.getElementById('search-input').value));
                 } catch (err) {
-                    alert('Error: Please check Firestore Rules (allow write for admin).');
-                    btn.textContent = '🔒 Force Lockout (12h)';
+                    alert('Could not save. Check your connection and try again.');
+                    btn.textContent = `🔒 Force Lockout (${penaltyLabel()})`;
                 }
                 btn.disabled = false;
             };

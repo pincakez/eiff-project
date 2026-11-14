@@ -86,7 +86,7 @@ onAuthStateChanged(auth, async (user) => {
     try {
     // Only a quiz the student has really unlocked opens (a typed address never skips ahead)
     const me = await getUserData(user.uid);
-    if (!me) { await eiffSignOut(); window.location.href = 'index.html'; return; }
+    if (!me || me.paused === true) { await eiffSignOut(); window.location.href = 'index.html'; return; }
     if (!quizIsOpenFor(me)) {
         alert('الاختبار ده لسه مقفول. كمّل اللي قبله الأول.');
         window.location.href = `dashboard.html?chapter=${Math.min(chapter, me.unlockedChapter ?? 1)}`;

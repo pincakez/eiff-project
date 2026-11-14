@@ -6,7 +6,7 @@ import {
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
     getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where, writeBatch
+    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where, writeBatch, collectionGroup
 }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
@@ -66,6 +66,11 @@ async function refuseIfRemoved(user) {
     if ((await getDoc(doc(db, "removed", user.uid))).exists()) {
         await signOut(auth);
         throw { code: 'eiff/removed' };
+    }
+    const me = await getUserData(user.uid);
+    if (me?.paused === true) {
+        await signOut(auth);
+        throw { code: 'eiff/paused' };
     }
 }
 
@@ -282,6 +287,38 @@ async function deleteUserData(uid) {
     await deleteDoc(doc(db, "users", uid));
 }
 
+// ── Admin powers (2026-11-14) ─────────────────────────────────────
+
+// One message to many students (500 per write, Firestore's batch limit)
+async function sendMessageToAll(uids, text) {
+    const stamp = Date.now();
+    for (let i = 0; i < uids.length; i += 450) {
+        const batch = writeBatch(db);
+        uids.slice(i, i + 450).forEach((uid, k) => batch.update(doc(db, "users", uid), {
+            messages: arrayUnion({ id: `${stamp}-all-${i + k}`, text, timestamp: stamp, read: false })
+        }));
+        await batch.commit();
+    }
+}
+
+// Pause = the student cannot sign in or take quizzes; nothing is deleted. Unpause any time.
+async function setPaused(uid, paused) {
+    await updateDoc(doc(db, "users", uid), { paused: Boolean(paused) });
+}
+
+// Back to the very start: level 1, chapter 1, no Grand / Boss passes, no lock. Quiz history stays.
+async function resetProgress(uid) {
+    await updateDoc(doc(db, "users", uid), {
+        unlockedLevel: 1, unlockedChapter: 1, grandQuizPassed: false, finalBossPassed: false, lastAttempt: null
+    });
+}
+
+// Every quiz attempt of every student (admin only — the rules refuse anyone else)
+async function getAllAttempts() {
+    const snap = await getDocs(collectionGroup(db, "attempts"));
+    return snap.docs.map(d => ({ uid: d.ref.parent.parent.id, ...d.data() }));
+}
+
 // ── Global Config ─────────────────────────────────────────────────
 
 async function getGlobalConfig() {
@@ -326,6 +363,7 @@ async function markMessageRead(uid, msgId) {
 export {
     auth, db, onAuthStateChanged,
     eiffSignUp, eiffSignIn, eiffSignOut, adminSignIn, isAdminUser, eiffGoogleSignIn, isNameTaken, cleanName, hasGoogle, linkGoogle,
+    sendMessageToAll, setPaused, resetProgress, getAllAttempts,
     getUserData, getAllUsers, findUserByName,
     unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
     updateUserProfile, sendUserPasswordReset,
