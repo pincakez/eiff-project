@@ -506,6 +506,71 @@ img {
   box-shadow: 0 8px 22px rgba(234, 67, 53, 0.5);
 }
 
+.link-google {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.link-google[hidden] {
+  display: none;
+}
+
+.link-google-text {
+  flex: 1 1 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--text-2);
+}
+
+.link-google-text strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.link-google-msg {
+  color: var(--g-red);
+  font-weight: 600;
+}
+
+.link-google-msg:empty {
+  display: none;
+}
+
+.link-google-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 220px;
+}
+
+.link-google-actions .btn-google {
+  flex: 1;
+}
+
+.link-google-later {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-family: "Inter", sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.link-google-later:hover {
+  color: var(--text-2);
+}
+
 .auth-or {
   display: flex;
   align-items: center;

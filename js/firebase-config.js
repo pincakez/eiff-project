@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail,
-    GoogleAuthProvider, signInWithPopup
+    GoogleAuthProvider, signInWithPopup, linkWithPopup
 }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
@@ -67,6 +67,16 @@ async function refuseIfRemoved(user) {
         await signOut(auth);
         throw { code: 'eiff/removed' };
     }
+}
+
+// Connect Google to an existing password account: afterwards the student can sign in either way,
+// same account, same progress.
+function hasGoogle(user) {
+    return !!user?.providerData?.some(p => p.providerId === 'google.com');
+}
+async function linkGoogle() {
+    if (!auth.currentUser) throw { code: 'auth/no-current-user' };
+    await linkWithPopup(auth.currentUser, new GoogleAuthProvider());
 }
 
 // "Continue with Google": signs in, and makes the student record the first time.
@@ -315,7 +325,7 @@ async function markMessageRead(uid, msgId) {
 
 export {
     auth, db, onAuthStateChanged,
-    eiffSignUp, eiffSignIn, eiffSignOut, adminSignIn, isAdminUser, eiffGoogleSignIn, isNameTaken, cleanName,
+    eiffSignUp, eiffSignIn, eiffSignOut, adminSignIn, isAdminUser, eiffGoogleSignIn, isNameTaken, cleanName, hasGoogle, linkGoogle,
     getUserData, getAllUsers, findUserByName,
     unlockNextLevel, unlockNextChapter, setUserLevel, setUserChapter,
     updateUserProfile, sendUserPasswordReset,
