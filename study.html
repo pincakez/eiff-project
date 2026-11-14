@@ -80,7 +80,7 @@
             const btnStart = document.getElementById('btn-start-quiz');
             const { checkLockout } = await import('./js/firebase-config.js');
 
-            const lockout = await checkLockout(user.uid);
+            const lockout = await checkLockout(user.uid, `level-${chapter}-${level}`); // this level's own block
             if (lockout.isLocked) {
                 btnStart.disabled = true;
                 btnStart.classList.add('btn-locked');

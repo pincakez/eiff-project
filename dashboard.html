@@ -46,6 +46,11 @@
                 <div class="user-badge-avatar" id="user-avatar">?</div>
                 <span id="user-name">Loading…</span>
             </div>
+            <div class="my-stats" id="my-stats" hidden>
+                <div class="my-stat"><b id="stat-words">0</b><small>🧠 words mastered</small></div>
+                <div class="my-stat"><b id="stat-rank">—</b><small>🏅 rank</small></div>
+                <div class="my-stat"><b id="stat-points">0</b><small>⚡ streak points</small></div>
+            </div>
         </div>
 
         <!-- Connect Google (only for students who do not have it yet) -->
@@ -96,7 +101,7 @@
 
         // Database text is shown as TEXT, never as page code (a name like <img onerror=…> must not run).
         const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        import { auth, onAuthStateChanged, getUserData, eiffSignOut, markMessageRead, getGlobalConfig, hasGoogle, linkGoogle, buyLife } from './js/firebase-config.js';
+        import { auth, onAuthStateChanged, getUserData, eiffSignOut, markMessageRead, getGlobalConfig, hasGoogle, linkGoogle, buyLife, getAllUsers } from './js/firebase-config.js';
         // The Master card shows the admin's real rules (default 96% of 50 = 48, 3 mistakes)
         let MASTER_NEED = 48, MASTER_MISTAKES = 3;
         let LIFE_PRICE = 10, MAX_LIVES = 3;
@@ -131,6 +136,11 @@
             if (!userData || userData.paused === true) { await eiffSignOut(); window.location.href = 'index.html'; return; } // removed or paused
             setupLinkGoogle(user);
             setupStore(user);
+            showMyStats(user);   // real numbers (before god mode opens everything below)
+            if (userData.godMode === true) {
+                // God mode: every chapter, level, Grand Quiz and Final Boss open (only on screen: nothing is written)
+                userData = { ...userData, unlockedLevel: 61, unlockedChapter: 11, grandQuizPassed: true };
+            }
 
             // Populate user badge
             const name = userData?.displayName || user.email.split('@')[0];
@@ -207,6 +217,22 @@
             if (activePill) activePill.classList.add('active');
         });
 
+        // ─── My stats: words mastered (the leaderboard's score), rank, streak points ─
+        async function showMyStats(user) {
+            const box = document.getElementById('my-stats');
+            const words = Math.max(0, ((userData.unlockedLevel ?? 1) - 1) * 50);
+            document.getElementById('stat-words').textContent = words.toLocaleString('en-US');
+            document.getElementById('stat-points').textContent = (userData.streakPoints ?? 0).toLocaleString('en-US');
+            box.hidden = false;
+            try {
+                // the same order as the leaderboard: level first, then chapter
+                const all = (await getAllUsers()).filter(u => !u.isInsider);
+                all.sort((a, b) => ((b.unlockedLevel ?? 1) - (a.unlockedLevel ?? 1)) || ((b.unlockedChapter ?? 1) - (a.unlockedChapter ?? 1)));
+                const r = all.findIndex(u => u.uid === user.uid) + 1;
+                document.getElementById('stat-rank').textContent = r ? `#${r} of ${all.length}` : '—';
+            } catch (_) { }
+        }
+
         // ─── Streak Store ───────────────────────────
         function setupStore(user) {
             const card = document.getElementById('store-card');
@@ -226,6 +252,7 @@
                 try {
                     const r = await buyLife(user.uid, LIFE_PRICE, MAX_LIVES);
                     points = r.points; lives = r.lives;
+                    document.getElementById('stat-points').textContent = points.toLocaleString('en-US');
                     msg.textContent = '❤️ Life bought! It saves you once in your next quizzes.';
                     showToast('❤️ +1 extra life');
                 } catch (err) {

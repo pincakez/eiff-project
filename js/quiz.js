@@ -52,6 +52,10 @@ let streak = 0;
 let earnedPoints = 0;
 let extraLives = 0;
 let pointsSaved = false;
+let isGod = false;        // god mode (set by the admin on the server): everything open, never blocked
+
+// This quiz's own block key (each quiz has its own block)
+const quizKey = () => type === 'level' ? `level-${chapter}-${level}` : type === 'master' ? `master-${chapter}` : type;
 
 // ─── Parse URL ─────────────────────────────
 const params = new URLSearchParams(window.location.search);
@@ -101,6 +105,7 @@ onAuthStateChanged(auth, async (user) => {
     const me = await getUserData(user.uid);
     if (!me || me.paused === true) { await eiffSignOut(); window.location.href = 'index.html'; return; }
     extraLives = Math.max(0, me.extraLives ?? 0);
+    isGod = me.godMode === true;
     if (!quizIsOpenFor(me)) {
         alert('الاختبار ده لسه مقفول. كمّل اللي قبله الأول.');
         window.location.href = `dashboard.html?chapter=${Math.min(chapter, me.unlockedChapter ?? 1)}`;
@@ -108,7 +113,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     // Double check lockout
-    const lockout = await checkLockout(user.uid);
+    const lockout = await checkLockout(user.uid, quizKey());
     if (lockout.isLocked) {
         alert(`أنت محظور من الاختبارات لمدة ${lockout.penaltyHours ?? 12} ساعة يا باشة.`);
         window.location.href = 'dashboard.html';
@@ -116,7 +121,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     // Start Lockout as soon as user lands here
-    await logQuizAttempt(user.uid);
+    if (!isGod) await logQuizAttempt(user.uid, quizKey());
 
     // Master / Grand / Boss: their warning message first. Then, for every quiz, the 5-second countdown
     // with this quiz's real rules (the admin's mistakes and timer).
@@ -140,6 +145,7 @@ onAuthStateChanged(auth, async (user) => {
 
 // Is this quiz open for this student? (the same rules the dashboard draws)
 function quizIsOpenFor(me) {
+    if (me.godMode === true) return ['level', 'master', 'grand', 'boss'].includes(type) && chapter >= 1 && chapter <= 10 && level >= 1 && level <= 6;
     const uLevel = me.unlockedLevel ?? 1;
     const uChapter = me.unlockedChapter ?? 1;
     if (type === 'level') return chapter >= 1 && chapter <= 10 && level >= 1 && level <= 6 && globalLevel <= uLevel && chapter <= uChapter;
@@ -582,7 +588,7 @@ async function showResults() {
 
     // Clear lockout on pass
     if (passed && currentUser) {
-        await clearLockout(currentUser.uid);
+        await clearLockout(currentUser.uid, quizKey());
     }
 
     // Level quiz pass: unlock next level
@@ -616,25 +622,25 @@ async function showResults() {
         } catch (_) { /* non-critical */ }
     }
 
-    // Smart context-aware navigation button
-    let btnText = `← Back to Chapter ${chapter}`;
-    let btnUrl  = `dashboard.html?chapter=${chapter}`;
-
-    if (passed && type === 'level' && level === 6) {
-        btnText = '🏆 Take Master Quiz';
-        btnUrl  = `quiz.html?type=master&chapter=${chapter}`;
-    } else if (passed && type === 'master' && chapterUnlocked) {
+    // Two buttons (2026-11-14): «Back to dashboard» always, and the next step when there is one
+    const home = (type === 'grand' || type === 'boss') ? 'dashboard.html?chapter=11' : `dashboard.html?chapter=${chapter}`;
+    let nextText = '', nextUrl = '';
+    if (passed && type === 'level' && level < 6) {
+        nextText = `Next level → Lv.${level + 1}`;
+        nextUrl = `study.html?chapter=${chapter}&level=${level + 1}`;
+    } else if (passed && type === 'level' && level === 6) {
+        nextText = '🏆 Take the Master Quiz';
+        nextUrl = `quiz.html?type=master&chapter=${chapter}`;
+    } else if (passed && type === 'master' && (chapterUnlocked || isGod || chapter < 10)) {
         const nextCh = chapter + 1;
-        if (nextCh === 11) {
-            btnText = '⭐ Go to Chapter X →';
-            btnUrl  = `dashboard.html?chapter=11`;
-        } else {
-            btnText = `Go to Chapter ${nextCh} →`;
-            btnUrl  = `dashboard.html?chapter=${nextCh}`;
-        }
-    } else if (type === 'grand' || type === 'boss') {
-        btnText = '⭐ Back to Chapter X';
-        btnUrl  = 'dashboard.html?chapter=11';
+        nextText = nextCh === 11 ? '⭐ Go to Chapter X →' : `Next chapter → Ch.${nextCh}`;
+        nextUrl = nextCh === 11 ? 'dashboard.html?chapter=11' : `study.html?chapter=${nextCh}&level=1`;
+    } else if (passed && type === 'grand') {
+        nextText = '👹 Face THE FINAL BOSS';
+        nextUrl = 'quiz.html?type=boss';
+    } else if (!passed && type === 'level') {
+        nextText = '📖 Study this level again';
+        nextUrl = `study.html?chapter=${chapter}&level=${level}`;
     }
 
     // Hide bottom "Next" button
@@ -691,15 +697,15 @@ async function showResults() {
             ${passed && type === 'grand'
             ? `<p class="chapter-unlock-msg" style="background: linear-gradient(135deg,#f59e0b,#ef4444); color: #fff;">👹 THE FINAL BOSS HAS BEEN UNLOCKED IN CHAPTER X!</p>`
             : ''}
-            <button class="btn-primary" id="btn-quiz-done" style="margin-top: 15px; padding: 14px 40px; font-size: 1.1rem; border-radius: 50px;">
-                ${btnText}
-            </button>
+            <div class="result-actions">
+                ${nextText ? `<button class="btn-primary" id="btn-quiz-next">${nextText}</button>` : ''}
+                <button class="btn-secondary" id="btn-quiz-done">🏠 Back to dashboard</button>
+            </div>
         </div>
     `;
 
-    document.getElementById('btn-quiz-done').addEventListener('click', () => {
-        window.location.href = btnUrl;
-    });
+    document.getElementById('btn-quiz-done').addEventListener('click', () => { window.location.href = home; });
+    document.getElementById('btn-quiz-next')?.addEventListener('click', () => { window.location.href = nextUrl; });
 }
 
 // ─── Helpers ───────────────────────────────

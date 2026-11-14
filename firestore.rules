@@ -20,7 +20,7 @@ service cloud.firestore {
       allow read: if signedIn();                       // the leaderboard ranks everyone
       allow create: if isMe(uid) && request.resource.data.isInsider == false;
       allow update: if isAdmin()
-        || (isMe(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isInsider', 'email', 'paused']));
+        || (isMe(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isInsider', 'email', 'paused', 'godMode']));
       allow delete: if isAdmin();
     }
 

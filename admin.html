@@ -1531,10 +1531,12 @@
         // ── Helpers ──────────────────────────────────────────────
         let CURRENT_PENALTY_MS = 12 * 60 * 60 * 1000;
 
+        // Locked = the admin's «lock everything» OR any one quiz still blocked (each quiz has its own block)
         function isLocked(userData) {
-            if (!userData.lastAttempt) return false;
-            const ts = userData.lastAttempt.toDate ? userData.lastAttempt.toDate().getTime()
-                : userData.lastAttempt.seconds * 1000;
+            if (userData.godMode === true) return false;
+            const ms = t => t ? (t.toDate ? t.toDate().getTime() : t.seconds * 1000) : 0;
+            const ts = Math.max(ms(userData.lastAttempt), ...Object.values(userData.locks || {}).map(ms), 0);
+            if (!ts) return false;
             return Date.now() - ts < CURRENT_PENALTY_MS;
         }
 
@@ -1823,7 +1825,7 @@
                 <div class="user-cell">
                     <div class="avatar" style="${insider ? 'background:linear-gradient(135deg,#8b5cf6,#6d28d9);' : ''}">${esc((u.displayName || u.email || '?')[0].toUpperCase())}</div>
                     <div>
-                        <div class="user-name">${esc(u.displayName || '—')} ${insider ? '<span class="badge badge-purple" style="font-size:0.6rem;padding:2px 7px;">👻 INSIDER</span>' : ''}</div>
+                        <div class="user-name">${esc(u.displayName || '—')} ${insider ? '<span class="badge badge-purple" style="font-size:0.6rem;padding:2px 7px;">👻 INSIDER</span>' : ''}${u.godMode === true ? ' <span class="badge badge-amber" style="font-size:0.6rem;padding:2px 7px;">⚡ GOD MODE</span>' : ''}</div>
                         <div class="user-email">${esc(u.email || '')}</div>
                     </div>
                 </div>

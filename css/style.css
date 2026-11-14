@@ -2408,3 +2408,59 @@ body.streak-fire {
   .fx-red, .fx-green, .fx-greenblue { animation-duration: 0.2s; }
   body.streak-fire { animation: none; box-shadow: inset 0 0 110px rgba(52, 168, 83, 0.5); }
 }
+
+/* dashboard stats + the quiz result buttons (2026-11-14) */
+.my-stats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.my-stats[hidden] {
+  display: none;
+}
+
+.my-stat {
+  min-width: 104px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.my-stat b {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.my-stat small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.result-actions button {
+  padding: 13px 28px;
+  font-size: 1rem;
+  border-radius: 50px;
+}
+
+@media (max-width: 480px) {
+  .result-actions button {
+    flex: 1 1 100%;
+  }
+}

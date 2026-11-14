@@ -6,7 +6,7 @@ import {
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
     getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where, writeBatch, collectionGroup, increment, runTransaction
+    collection, getDocs, addDoc, query, orderBy, limit, arrayUnion, where, writeBatch, collectionGroup, increment, runTransaction, deleteField
 }
     from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
@@ -153,29 +153,35 @@ async function findUserByName(name) {
 
 // ── Lockout ───────────────────────────────────────────────────────
 
-async function logQuizAttempt(uid) {
-    await updateDoc(doc(db, "users", uid), { lastAttempt: serverTimestamp() });
+// Each quiz has its OWN block (2026-11-14): failing Level 1-2 never blocks Level 1-3 or a Master Quiz.
+//   locks.<quiz key> = when the student entered that quiz (a pass clears it)
+//   lastAttempt      = the admin's «Force Lockout»: blocks EVERY quiz
+// Quiz keys: level-<chapter>-<level> · master-<chapter> · grand · boss
+const tsMs = ts => ts ? (ts.toDate ? ts.toDate().getTime() : ts.seconds * 1000) : 0;
+
+async function logQuizAttempt(uid, key) {
+    await updateDoc(doc(db, "users", uid), { [`locks.${key}`]: serverTimestamp() });
 }
 
-async function clearLockout(uid) {
-    await updateDoc(doc(db, "users", uid), { lastAttempt: null });
+// key given = that quiz only (a pass). No key = the admin's «Remove Lockout»: every block goes.
+async function clearLockout(uid, key) {
+    if (key) await updateDoc(doc(db, "users", uid), { [`locks.${key}`]: deleteField() });
+    else await updateDoc(doc(db, "users", uid), { lastAttempt: null, locks: {} });
 }
 
 async function lockUser(uid) {
     await updateDoc(doc(db, "users", uid), { lastAttempt: serverTimestamp() });
 }
 
-async function checkLockout(uid) {
+async function checkLockout(uid, key) {
     const data = await getUserData(uid);
-    if (!data || !data.lastAttempt) return { isLocked: false, timeLeftMs: 0 };
-    
-    // Get variable penalty time
+    if (!data || data.godMode === true) return { isLocked: false, timeLeftMs: 0 };
     const config = await getGlobalConfig();
     const penaltyHours = config?.penaltyHours ?? 12;
     const lockoutMs = penaltyHours * 60 * 60 * 1000;
-    
-    const elapsed = Date.now() - data.lastAttempt.toDate().getTime();
-    const timeLeft = lockoutMs - elapsed;
+    const since = Math.max(tsMs(data.lastAttempt), key ? tsMs(data.locks?.[key]) : 0);
+    if (!since) return { isLocked: false, timeLeftMs: 0, penaltyHours };
+    const timeLeft = lockoutMs - (Date.now() - since);
     return { isLocked: timeLeft > 0, timeLeftMs: Math.max(0, timeLeft), penaltyHours };
 }
 
@@ -309,7 +315,7 @@ async function setPaused(uid, paused) {
 // Back to the very start: level 1, chapter 1, no Grand / Boss passes, no lock. Quiz history stays.
 async function resetProgress(uid) {
     await updateDoc(doc(db, "users", uid), {
-        unlockedLevel: 1, unlockedChapter: 1, grandQuizPassed: false, finalBossPassed: false, lastAttempt: null
+        unlockedLevel: 1, unlockedChapter: 1, grandQuizPassed: false, finalBossPassed: false, lastAttempt: null, locks: {}
     });
 }
 
